@@ -14,6 +14,19 @@ ARTEFACTS="$BUILD_DIR/StereoDelayHall_artefacts/$BUILD_TYPE"
 VST3_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
 AU_DIR="$HOME/Library/Audio/Plug-Ins/Components"
 
+# Bundles are directories; prefer the standard JUCE layout, fall back to a search.
+find_bundle() {
+    local name="$1" subdir="$2"
+    local p="$ARTEFACTS/$subdir/$name"
+    if [ -e "$p" ]; then printf '%s' "$p"; return; fi
+    find "$BUILD_DIR" -type d -name "$name" 2>/dev/null | head -1
+}
+VST3_BUNDLE="$(find_bundle StereoDelayHall.vst3 VST3)"
+AU_BUNDLE="$(find_bundle StereoDelayHall.component AU)"
+APP_BUNDLE="$(find_bundle StereoDelayHall.app Standalone)"
+[ -n "$VST3_BUNDLE" ] || { echo "ERROR: StereoDelayHall.vst3 not found under $BUILD_DIR — did the build succeed?"; exit 1; }
+[ -n "$AU_BUNDLE" ]   || { echo "ERROR: StereoDelayHall.component not found under $BUILD_DIR — did the build succeed?"; exit 1; }
+
 echo "==> Checking prerequisites"
 command -v cmake >/dev/null 2>&1 || { echo "ERROR: cmake not found (brew install cmake)"; exit 1; }
 xcode-select -p >/dev/null 2>&1 || { echo "ERROR: Xcode Command Line Tools missing (xcode-select --install)"; exit 1; }
@@ -29,19 +42,19 @@ cmake --build "$BUILD_DIR" --target dsp_test
 "$BUILD_DIR/dsp_test" | tail -1
 
 echo "==> Signing bundles (ad-hoc)"
-codesign --force --deep --sign - "$ARTEFACTS/StereoDelayHall.vst3" \
+codesign --force --deep --sign - "$VST3_BUNDLE" \
     || echo "warning: could not sign the .vst3 (continuing anyway)"
-codesign --force --deep --sign - "$ARTEFACTS/StereoDelayHall.component" \
+codesign --force --deep --sign - "$AU_BUNDLE" \
     || echo "warning: could not sign the .component (continuing anyway)"
 
 echo "==> Installing into ~/Library/Audio/Plug-Ins (overwriting existing)"
 mkdir -p "$VST3_DIR" "$AU_DIR"
 rm -rf "$VST3_DIR/StereoDelayHall.vst3" "$AU_DIR/StereoDelayHall.component"
-cp -R "$ARTEFACTS/StereoDelayHall.vst3" "$VST3_DIR/"
-cp -R "$ARTEFACTS/StereoDelayHall.component" "$AU_DIR/"
+cp -R "$VST3_BUNDLE" "$VST3_DIR/"
+cp -R "$AU_BUNDLE" "$AU_DIR/"
 
 echo "==> Done"
 echo "VST3:          $VST3_DIR/StereoDelayHall.vst3"
 echo "Audio Unit:    $AU_DIR/StereoDelayHall.component"
-echo "Standalone:    $ARTEFACTS/Standalone/StereoDelayHall.app"
+echo "Standalone:    ${APP_BUNDLE:-$ARTEFACTS/Standalone/StereoDelayHall.app}"
 echo "Restart your DAW (or: killall -9 AudioComponentRegistrar) to rescan plugins."

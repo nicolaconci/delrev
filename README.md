@@ -65,11 +65,11 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-Artifacts land in `build/StereoDelayHall_artefacts/Release/`:
+Artifacts land in `build/StereoDelayHall_artefacts/Release/`, one subfolder per format:
 
-- `StereoDelayHall.vst3` → copy to `~/Library/Audio/Plug-Ins/VST3/`
-- `StereoDelayHall.component` → copy to `~/Library/Audio/Plug-Ins/Components/`
-- `StereoDelayHall.app` → standalone app to try it immediately (no DAW needed)
+- `VST3/StereoDelayHall.vst3` → copy to `~/Library/Audio/Plug-Ins/VST3/`
+- `AU/StereoDelayHall.component` → copy to `~/Library/Audio/Plug-Ins/Components/`
+- `Standalone/StereoDelayHall.app` → standalone app to try it immediately (no DAW needed)
 
 To use a different JUCE version: `cmake -B build -DJUCE_GIT_TAG=8.0.4`
 (the tag `8.0.4` is pinned in `CMakeLists.txt`).
