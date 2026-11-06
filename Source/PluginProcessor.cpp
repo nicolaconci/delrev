@@ -29,6 +29,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("smear", "Smear", {0.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("%", 1));
+    addFloat("smearDur", "Smear Dur", {1.0f, 500.0f, 0.1f}, 100.0f, makeAttrs("ms", 1));
 
     NormalisableRange<float> timeRange(20.0f, 2000.0f, 0.1f);
     timeRange.setSkewForCentre(500.0f);
@@ -64,6 +65,7 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     feedbackLParam = apvts.getRawParameterValue("feedbackL");
     feedbackRParam = apvts.getRawParameterValue("feedbackR");
     smearParam = apvts.getRawParameterValue("smear");
+    smearDurParam = apvts.getRawParameterValue("smearDur");
     smearCurveParam = apvts.getRawParameterValue("smearCurve");
     timeLParam = apvts.getRawParameterValue("timeL");
     timeRParam = apvts.getRawParameterValue("timeR");
@@ -109,6 +111,7 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.feedbackL = feedbackLParam->load() / 100.0f;
     p.feedbackR = feedbackRParam->load() / 100.0f;
     p.smear = smearParam->load() / 100.0f;
+    p.smearDurMs = smearDurParam->load();
     p.smearCurve = (int) smearCurveParam->load();
     p.timeLms = timeLParam->load();
     p.timeRms = timeRParam->load();

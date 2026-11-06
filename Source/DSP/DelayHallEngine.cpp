@@ -46,6 +46,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.feedbackL = std::clamp(c.feedbackL, 0.0f, 0.95f);
     c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
     c.smear = std::clamp(c.smear, 0.0f, 1.0f);
+    c.smearDurMs = std::clamp(c.smearDurMs, 1.0f, 500.0f);
     c.smearCurve = std::clamp(c.smearCurve, 0, 2);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
@@ -111,29 +112,32 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        // smear: one-pole lowpass in the feedback path only, so the first
-        // repeat stays intact and later repeats get a softer attack.
-        // The smear -> coefficient mapping is selectable (linear/log/exp).
-        float alpha;
+        // smear: one-pole lowpass on the wet (read) side, so every repeat gets
+        // an attack ramp of ~smearDurMs; the curve shapes amount -> duration
+        const float s = smear;
+        float eff;
         switch (target.smearCurve) {
-            case 1:  alpha = std::pow(std::max(0.0f, 1.0f - smear), 2.5f); break; // log
-            case 2:  alpha = std::exp(-6.0f * smear); break;                      // exp
-            default: alpha = 1.0f - 0.98f * smear; break;                         // linear
+            case 1:  eff = std::pow(s, 0.4f); break;  // log: stronger at low-mid amount
+            case 2:  eff = std::pow(s, 2.5f); break;  // exp: only near max amount
+            default: eff = s; break;                  // linear
         }
-        alpha = std::max(0.01f, alpha);
+        const float durSamples = std::max(1.0f, target.smearDurMs * sr * 0.001f);
+        const float alpha = (eff <= 0.0f) ? 1.0f : (1.0f - std::exp(-1.0f / (eff * durSamples)));
         lpL += alpha * (dL - lpL);
         lpR += alpha * (dR - lpR);
+        const float wL = lpL;
+        const float wR = lpR;
 
-        lineL.write(inL + feedbackL * lpL);
+        lineL.write(inL + feedbackL * wL);
         lineL.advance();
-        lineR.write(inR + feedbackR * lpR);
+        lineR.write(inR + feedbackR * wR);
         lineR.advance();
 
         float rvL = 0.0f, rvR = 0.0f;
-        reverb.process(dL, dR, rvL, rvR);
+        reverb.process(wL, wR, rvL, rvR);
 
-        const float wetL = dL + revMix * rvL;
-        const float wetR = dR + revMix * rvR;
+        const float wetL = wL + revMix * rvL;
+        const float wetR = wR + revMix * rvR;
 
         left[i] = ((1.0f - mixL) * inL + mixL * wetL) * master;
         right[i] = ((1.0f - mixR) * inR + mixR * wetR) * master;

@@ -263,15 +263,15 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
-    // 11) smear lowpasses the feedback path: later repeats get a softer attack
+    // 11) smear smooths the attack of every repeat over ~smearDurMs (read-side lowpass)
     {
-        auto run = [&](float smear) {
+        auto run = [&](float smear, float durMs) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.smear = smear;
+            p.smear = smear; p.smearDurMs = durMs;
             e.setParams(p);
             std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
             l[0] = 1.0f;
@@ -280,20 +280,25 @@ int main() {
         };
         const int t = (int) (0.100 * sr);
         float pv = 0.0f;
-        auto noSmear = run(0.0f);
-        peakIndex(noSmear, 2 * t - 20, 2 * t + 20, &pv);
-        const float ref = pv;
-        auto smeared = run(1.0f);
-        peakIndex(smeared, 2 * t - 20, 2 * t + 20, &pv);
-        std::printf("  smear: 2nd repeat amp %.3f (no smear) vs %.3f (smear=1)\n", (double) ref, (double) pv);
-        CHECK(ref > 0.8f, "no smear: 2nd repeat strong");
-        CHECK(pv < 0.2f * ref, "smear=1: 2nd repeat heavily softened");
-        // first repeat must stay unfiltered even with smear = 1
+        auto noSmear = run(0.0f, 100.0f);
+        peakIndex(noSmear, t - 20, t + 20, &pv);
+        const float ref = pv; // ~1.0
+        auto smeared = run(1.0f, 100.0f);
         peakIndex(smeared, t - 20, t + 20, &pv);
-        CHECK(pv > 0.8f, "smear does not touch the first repeat");
+        const float peakNear = pv;
+        const double energy = rms(smeared, t + 10, t + 4000);
+        auto longDur = run(1.0f, 500.0f);
+        peakIndex(longDur, t - 20, t + 20, &pv);
+        const float peakLong = pv;
+        std::printf("  smear: no-smear 1st peak %.3f; smeared@100ms peak %.5f rms %.5f; @500ms peak %.5f\n",
+                    (double) ref, (double) peakNear, energy, (double) peakLong);
+        CHECK(ref > 0.8f, "no smear: 1st repeat peak ~1.0");
+        CHECK(peakNear < 0.2f * ref, "smear softens the attack of the 1st repeat too");
+        CHECK(energy > 1e-5, "smear spreads the repeat energy over the duration");
+        CHECK(peakLong < peakNear, "longer smear duration -> even softer attack");
     }
 
-    // 12) smear curve selection: linear / log / exp map smear to different filter strengths
+    // 12) smear curve shapes amount -> effective duration (dur fixed at 100 ms)
     {
         auto run = [&](int curve, float smear) {
             StereoDelayHallEngine e;
@@ -301,8 +306,7 @@ int main() {
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.smear = smear;
-            p.smearCurve = curve;
+            p.smear = smear; p.smearDurMs = 100.0f; p.smearCurve = curve;
             e.setParams(p);
             std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
             l[0] = 1.0f;
@@ -312,15 +316,15 @@ int main() {
         const int t = (int) (0.100 * sr);
         float a[3] = {0.0f, 0.0f, 0.0f};
         for (int c = 0; c < 3; ++c) {
-            auto v = run(c, 0.5f);
-            peakIndex(v, 2 * t - 20, 2 * t + 20, &a[c]);
+            auto v = run(c, 0.2f);
+            peakIndex(v, t - 20, t + 20, &a[c]);
         }
-        std::printf("  smear=0.5 2nd-repeat amp: linear %.3f, log %.3f, exp %.3f\n",
+        std::printf("  smear=0.2 dur=100ms 1st-repeat peak: linear %.5f, log %.5f, exp %.5f\n",
                     (double) a[0], (double) a[1], (double) a[2]);
-        CHECK(a[0] > 0.35f && a[0] < 0.55f, "linear curve @0.5 ~0.46");
-        CHECK(a[1] > 0.10f && a[1] < 0.22f, "log curve @0.5 ~0.16");
-        CHECK(a[2] > 0.02f && a[2] < 0.08f, "exp curve @0.5 ~0.045");
-        CHECK(a[0] > a[1] && a[1] > a[2], "curves ordered linear > log > exp");
+        // bigger peak = less filtering: exp (eff=s^2.5) filters least at low amount, log (s^0.4) most
+        CHECK(a[2] > a[0] && a[0] > a[1], "curve ordering at 0.2: exp > linear > log (peak amp)");
+        CHECK(a[2] > 0.005f, "exp curve keeps the repeat clearly audible at low amount");
+        CHECK(a[1] < 0.001f, "log curve already heavy at low amount");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

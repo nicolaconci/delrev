@@ -34,7 +34,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
 
     // single-knob sections (PRE, MASTER, SMEAR) show only the coloured group
     // title, not an extra label above the knob
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 7; };
 
     for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
@@ -110,7 +110,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         return Rectangle<int>(groupArea.getX() + 4 + index * w, groupArea.getY() + 14,
                               w, groupArea.getHeight() - 18);
     };
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 7; };
     auto placeKnob = [&](int i, Rectangle<int> cell) {
         if (hasInnerLabel(i))
             labels[i].setBounds(cell.removeFromTop(16));
@@ -148,23 +148,24 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto row2 = area;
     row2.removeFromTop(8);
 
-    auto smear = row2.removeFromLeft(170);
+    auto smear = row2.removeFromLeft(260);
     groupSmear.setBounds(smear);
-    auto smearCell = singleCell(smear);
-    smearCurveBox.setBounds(smearCell.removeFromBottom(22));
-    placeKnob(8, smearCell);
+    auto smearArea = Rectangle<int>(smear.getX() + 4, smear.getY() + 14, smear.getWidth() - 8, smear.getHeight() - 18);
+    smearCurveBox.setBounds(smearArea.removeFromBottom(22));
+    for (int i = 0; i < 2; ++i)
+        placeKnob(8 + i, cellOf(smearArea, i, 2));
     row2.removeFromLeft(8);
 
     auto mod = row2.removeFromLeft(220);
     groupMod.setBounds(mod);
     for (int i = 0; i < 2; ++i)
-        placeKnob(9 + i, cellOf(mod, i, 2));
+        placeKnob(10 + i, cellOf(mod, i, 2));
     row2.removeFromLeft(8);
 
     auto rev = row2.removeFromLeft(220);
     groupRev.setBounds(rev);
     for (int i = 0; i < 2; ++i)
-        placeKnob(11 + i, cellOf(rev, i, 2));
+        placeKnob(12 + i, cellOf(rev, i, 2));
     row2.removeFromLeft(8);
 
     auto wet = row2;
