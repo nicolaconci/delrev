@@ -131,3 +131,8 @@ void StereoDelayHallAudioProcessor::setStateInformation(const void* data, int si
         if (xml->hasTagName(apvts.state.getType()))
             apvts.replaceState(ValueTree::fromXml(*xml));
 }
+
+// This creates new instances of the plugin
+juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() {
+    return new StereoDelayHallAudioProcessor();
+}
