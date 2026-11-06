@@ -117,16 +117,11 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        // feedback uses the raw repeat: no filtering in the loop, so repeats
-        // never die out over time
-        lineL.write(inL + feedbackL * dL);
-        lineL.advance();
-        lineR.write(inR + feedbackR * dR);
-        lineR.advance();
-
-        // attack: fade-in on the wet output, so every repeat (incl. the first)
-        // starts soft over ~attackMs; curve selects the ramp shape
-        float wL = dL, wR = dR;
+        // attack: fade-in applied to the input entering the delay line, so the
+        // first repeat starts soft over ~attackMs and the fade-in propagates to
+        // the later repeats through the raw feedback (the recirculated signal is
+        // not filtered again -> no compounding); curve selects the ramp shape
+        float aL = inL, aR = inR;
         const int A = (int) std::lround(attack * sr * 0.001f);
         if (A > 1) {
             const int M = (int) histL.size();
@@ -140,19 +135,19 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 lastBoxW = boxW;
             }
             const int outIdx = (histPos - boxW + M) % M;
-            sumL += dL - histL[(size_t) outIdx];
-            sumR += dR - histR[(size_t) outIdx];
-            histL[(size_t) histPos] = dL;
-            histR[(size_t) histPos] = dR;
+            sumL += inL - histL[(size_t) outIdx];
+            sumR += inR - histR[(size_t) outIdx];
+            histL[(size_t) histPos] = inL;
+            histR[(size_t) histPos] = inR;
             histPos = (histPos + 1) % M;
 
             switch (target.attackCurve) {
                 case 2: { // exp: one-pole lowpass, tau = A (slow start, long tail)
                     const float alpha = 1.0f - std::exp(-1.0f / (float) A);
-                    lpL += alpha * (dL - lpL);
-                    lpR += alpha * (dR - lpR);
-                    wL = lpL;
-                    wR = lpR;
+                    lpL += alpha * (inL - lpL);
+                    lpR += alpha * (inR - lpR);
+                    aL = lpL;
+                    aR = lpR;
                     break;
                 }
                 case 1: { // log: box(A/2) then one-pole LP tau = A/4 (fast start)
@@ -161,23 +156,28 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                     const float alpha = 1.0f - std::exp(-4.0f / (float) A);
                     lpL += alpha * (bl - lpL);
                     lpR += alpha * (br - lpR);
-                    wL = lpL;
-                    wR = lpR;
+                    aL = lpL;
+                    aR = lpR;
                     break;
                 }
                 default: { // linear: box moving average over A
-                    wL = (float) (sumL / boxW);
-                    wR = (float) (sumR / boxW);
+                    aL = (float) (sumL / boxW);
+                    aR = (float) (sumR / boxW);
                     break;
                 }
             }
         }
 
-        float rvL = 0.0f, rvR = 0.0f;
-        reverb.process(wL, wR, rvL, rvR);
+        lineL.write(aL + feedbackL * dL);
+        lineL.advance();
+        lineR.write(aR + feedbackR * dR);
+        lineR.advance();
 
-        const float wetL = wL + revMix * rvL;
-        const float wetR = wR + revMix * rvR;
+        float rvL = 0.0f, rvR = 0.0f;
+        reverb.process(dL, dR, rvL, rvR);
+
+        const float wetL = dL + revMix * rvL;
+        const float wetR = dR + revMix * rvR;
 
         left[i] = ((1.0f - mixL) * inL + mixL * wetL) * master;
         right[i] = ((1.0f - mixR) * inR + mixR * wetR) * master;

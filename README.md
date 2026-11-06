@@ -22,12 +22,13 @@ MASTER`, row 2: `ATTACK | MOD | REV | WET`.
 | RIGHT   | Feedback R      | 0–95 %      | 35 %    | right feedback (independent)                                     |
 | RIGHT   | Mix R           | 0–100 %     | 30 %    | right dry/wet (independent)                                      |
 | MASTER  | Master          | -48..+12 dB | 0 dB    | output volume                                                    |
-| ATTACK  | Attack          | 0–200 ms    | 0 ms    | fade-in applied to every repeat, incl. the first (wet only, the feedback loop stays raw) |
+| ATTACK  | Attack          | 0–50 ms     | 0 ms    | fade-in on the first repeat; it propagates to later repeats through the feedback loop |
 | ATTACK  | Curve (combo)   | Linear / Log / Exp | Linear | shape of the fade-in ramp (Log = fast start, Exp = slow start)    |
 
-The attack control smooths the wet repeats in the time domain: each repeat's
-waveform gets a fade-in of `Attack` ms. Linear = box moving average, Exp =
-one-pole lowpass, Log = box + lowpass (fast start).
+The attack fade-in is applied to the signal entering the delay line, so the
+first repeat starts soft over `Attack` ms and the recirculated repeats inherit
+the same fade-in (the loop itself is not re-filtered, so repeats don't decay
+extra). Linear = box moving average, Exp = one-pole lowpass, Log = box + lowpass.
 | MOD     | Rate            | 0.05–10 Hz  | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                            |
 | MOD     | Depth           | 0–30 ms     | 4 ms    | delay-time deviation                                             |
 | REV     | Decay           | 0.2–10 s    | 3 s     | hall decay, RT60-mapped (log scale)                              |
@@ -65,9 +66,10 @@ Signal flow (per sample, per channel):
 ```
 input ─► [pre gain] ──┬───────────────────────► dry ─┐
                       │                              ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
-                      └─► [delay line + feedbackL/R × smear-lowpass] ─► d
+                      └─► [delay line + feedbackL/R] ─► d ─► [attack fade-in] ─► w
+                                       │                 ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
                                        │                 ├─► outR = ((1-mixR)*dryR + mixR*wetR) * master
-                                       │                 │   wet = d + revMix * hall(d)
+                                       │                 │   wet = w + revMix * hall(w)
                                        └─► hall reverb (repeats only)
 ```
 

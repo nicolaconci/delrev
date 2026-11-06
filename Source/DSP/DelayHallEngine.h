@@ -10,9 +10,9 @@ struct EngineParams {
     float masterDb = 0.0f;    // output/master volume (dB)
     float mixL = 0.30f;       // 0..1 dry/wet, left channel
     float mixR = 0.30f;       // 0..1 dry/wet, right channel
-    float feedbackL = 0.35f;  // 0..0.95, left channel
-    float feedbackR = 0.35f;  // 0..0.95, right channel
-    float attackMs = 0.0f;    // 0..maxAttackMs: fade-in length applied to every repeat (incl. the first)
+    float feedbackL = 0.35f;  // 0..0.95 recirculation gain, left channel
+    float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
+    float attackMs = 0.0f;    // 0..maxAttackMs: fade-in on the first repeat, propagated by the feedback loop
     int attackCurve = 0;      // 0 = linear, 1 = log, 2 = exp shape of the fade-in
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
@@ -35,7 +35,7 @@ public:
     static constexpr float maxTimeMs = 2000.0f;
     static constexpr float maxModDepthMs = 30.0f;
     static constexpr float minTimeMs = 5.0f;
-    static constexpr float maxAttackMs = 200.0f;
+    static constexpr float maxAttackMs = 50.0f;
 
 private:
     struct DelayLine {
@@ -119,7 +119,7 @@ private:
     int histPos = 0;
     double sumL = 0.0, sumR = 0.0;
     int lastBoxW = -1;
-    float lpL = 0.0f, lpR = 0.0f; // one-pole state (exp/log curves)
+    float lpL = 0.0f, lpR = 0.0f; // one-pole state (exp/log attack curves)
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

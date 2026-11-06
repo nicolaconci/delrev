@@ -279,25 +279,25 @@ int main() {
             return l;
         };
         const int t = (int) (0.100 * sr);
-        const int A = t; // attack = 100 ms
+        const int A = (int) (0.050 * sr); // attack = 50 ms (max range)
         float pv = 0.0f;
         auto noAtk = run(0.0f);
         peakIndex(noAtk, t - 20, t + 20, &pv);
         const float ref = pv; // ~1.0
-        auto atk = run(100.0f);
-        peakIndex(atk, t - 20, t + 20, &pv);
+        auto atk10 = run(10.0f);
+        peakIndex(atk10, t - 20, t + 20, &pv);
         const float peakNear = pv;
-        const double energy = rms(atk, t + 10, t + A);
-        const double energy2nd = rms(atk, 2 * t + 10, 2 * t + A);
-        auto atkLong = run(200.0f);
-        peakIndex(atkLong, t - 20, t + 20, &pv);
+        auto atk50 = run(50.0f);
+        peakIndex(atk50, t - 20, t + 20, &pv);
         const float peakLong = pv;
-        std::printf("  attack: none peak %.3f; @100ms peak %.5f rms %.5f (2nd rms %.5f); @200ms peak %.5f\n",
-                    (double) ref, (double) peakNear, energy, energy2nd, (double) peakLong);
+        const double energy = rms(atk50, t + 10, t + A);
+        const double energy2nd = rms(atk50, 2 * t + 10, 2 * t + A);
+        std::printf("  attack: none peak %.3f; @10ms peak %.5f; @50ms peak %.5f rms %.5f (2nd rms %.5f)\n",
+                    (double) ref, (double) peakNear, (double) peakLong, energy, energy2nd);
         CHECK(ref > 0.8f, "attack=0: 1st repeat peak ~1.0");
-        CHECK(peakNear < 0.2f * ref, "attack softens the 1st repeat onset");
+        CHECK(peakLong < 0.2f * ref, "attack softens the 1st repeat onset");
         CHECK(energy > 1e-5, "attack spreads the repeat over its duration");
-        CHECK(energy2nd > 1e-5, "feedback not filtered: 2nd repeat still present");
+        CHECK(energy2nd > 1e-5, "fade-in propagates: 2nd repeat still present");
         CHECK(peakLong < peakNear, "longer attack -> softer onset");
     }
 
@@ -309,14 +309,14 @@ int main() {
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.attackMs = 100.0f; p.attackCurve = curve;
+            p.attackMs = 50.0f; p.attackCurve = curve;
             e.setParams(p);
             std::vector<float> l(20000, 1.0f), r(20000, 1.0f); // step input
             e.process(l.data(), r.data(), 20000);
             return l;
         };
         const int t = (int) (0.100 * sr);
-        const int A = t; // attack = 100 ms
+        const int A = (int) (0.050 * sr); // attack = 50 ms
         float mid[3], full[3];
         for (int c = 0; c < 3; ++c) {
             auto v = run(c);

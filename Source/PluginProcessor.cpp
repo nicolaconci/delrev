@@ -28,7 +28,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("mixR", "Mix R", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
     addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
-    addFloat("attack", "Attack", {0.0f, 200.0f, 0.1f}, 0.0f, makeAttrs("ms", 1));
+    addFloat("attack", "Attack", {0.0f, 50.0f, 0.1f}, 0.0f, makeAttrs("ms", 1));
 
     NormalisableRange<float> timeRange(20.0f, 2000.0f, 0.1f);
     timeRange.setSkewForCentre(500.0f);
