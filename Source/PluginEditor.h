@@ -15,10 +15,12 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
 
     juce::Label titleLabel;
-    static constexpr int numControls = 9;
+    static constexpr int numControls = 11;
     juce::Slider sliders[numControls];
     juce::Label labels[numControls];
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numControls];
+    juce::ToggleButton wetButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessorEditor)
 };

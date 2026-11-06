@@ -10,8 +10,8 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
 
-    const char* ids[numControls] = {"mixL", "mixR", "feedback", "timeL", "timeR", "modRate", "modDepth", "revDecay", "revMix"};
-    const char* names[numControls] = {"Mix L", "Mix R", "Feedback", "Time L", "Time R", "Mod Rate", "Mod Depth", "Rev Decay", "Rev Mix"};
+    const char* ids[numControls] = {"preGain", "mixL", "mixR", "feedback", "timeL", "timeR", "modRate", "modDepth", "revDecay", "revMix", "master"};
+    const char* names[numControls] = {"Pre Gain", "Mix L", "Mix R", "Feedback", "Time L", "Time R", "Mod Rate", "Mod Depth", "Rev Decay", "Rev Mix", "Master"};
 
     for (int i = 0; i < numControls; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
@@ -29,7 +29,12 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, ids[i], sliders[i]);
     }
 
-    setSize(660, 440);
+    wetButton.setButtonText("100% Wet");
+    wetButton.setColour(ToggleButton::textColourId, Colours::white);
+    addAndMakeVisible(wetButton);
+    wetAttachment = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment>(apvts, "wet100", wetButton);
+
+    setSize(760, 440);
 }
 
 StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() = default;
@@ -42,7 +47,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(8);
     titleLabel.setBounds(area.removeFromTop(28));
 
-    const int cols = 3;
+    const int cols = 4;
     const int rows = 3;
     const int cellW = area.getWidth() / cols;
     const int cellH = area.getHeight() / rows;
@@ -53,5 +58,12 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         auto cell = Rectangle<int>(area.getX() + col * cellW, area.getY() + row * cellH, cellW, cellH);
         labels[i].setBounds(cell.removeFromTop(18));
         sliders[i].setBounds(cell.reduced(6));
+    }
+
+    {
+        const int col = numControls % cols;
+        const int row = numControls / cols;
+        auto cell = Rectangle<int>(area.getX() + col * cellW, area.getY() + row * cellH, cellW, cellH);
+        wetButton.setBounds(cell.reduced(6).withSizeKeepingCentre(cell.getWidth() - 12, 28));
     }
 }

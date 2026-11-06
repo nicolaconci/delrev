@@ -6,6 +6,8 @@
 namespace dsp {
 
 struct EngineParams {
+    float preGainDb = 0.0f;   // input gain (dB), applied before everything
+    float masterDb = 0.0f;    // output/master volume (dB)
     float mixL = 0.30f;       // 0..1 dry/wet, left channel
     float mixR = 0.30f;       // 0..1 dry/wet, right channel
     float feedback = 0.35f;   // 0..0.95
@@ -105,6 +107,8 @@ private:
 
     double sampleRate = 44100.0;
     EngineParams target {};
+    float preGain = 1.0f, master = 1.0f; // smoothed linear gains
+    float targetPreGain = 1.0f, targetMaster = 1.0f;
     float mixL = 0.0f, mixR = 0.0f, feedback = 0.0f, timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

@@ -4,6 +4,8 @@
 
 namespace dsp {
 
+static float dbToLinear(float db) { return std::pow(10.0f, db / 20.0f); }
+
 void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     sampleRate = sr;
     smoothCoef = 1.0f - std::exp(-1.0f / (float) (sr * 0.005)); // ~5 ms smoothing
@@ -14,6 +16,10 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     reverb.prepare(sr);
     EngineParams def;
     target = def;
+    targetPreGain = dbToLinear(def.preGainDb);
+    targetMaster = dbToLinear(def.masterDb);
+    preGain = targetPreGain;
+    master = targetMaster;
     mixL = def.mixL;
     mixR = def.mixR;
     feedback = def.feedback;
@@ -29,6 +35,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
 
 void StereoDelayHallEngine::setParams(const EngineParams& p) {
     EngineParams c = p;
+    c.preGainDb = std::clamp(c.preGainDb, -24.0f, 24.0f);
+    c.masterDb = std::clamp(c.masterDb, -48.0f, 12.0f);
     c.mixL = std::clamp(c.mixL, 0.0f, 1.0f);
     c.mixR = std::clamp(c.mixR, 0.0f, 1.0f);
     c.feedback = std::clamp(c.feedback, 0.0f, 0.95f);
@@ -39,7 +47,11 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.revDecaySec = std::clamp(c.revDecaySec, 0.2f, 10.0f);
     c.revMix = std::clamp(c.revMix, 0.0f, 1.0f);
     target = c;
+    targetPreGain = dbToLinear(c.preGainDb);
+    targetMaster = dbToLinear(c.masterDb);
     if (!paramsSnapped) {
+        preGain = targetPreGain;
+        master = targetMaster;
         mixL = c.mixL;
         mixR = c.mixR;
         feedback = c.feedback;
@@ -60,6 +72,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
     reverb.setDecay((double) target.revDecaySec, sampleRate);
 
     for (int i = 0; i < numSamples; ++i) {
+        preGain += (targetPreGain - preGain) * smoothCoef;
+        master += (targetMaster - master) * smoothCoef;
         mixL += (target.mixL - mixL) * smoothCoef;
         mixR += (target.mixR - mixR) * smoothCoef;
         feedback += (target.feedback - feedback) * smoothCoef;
@@ -69,8 +83,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         modDepth += (target.modDepthMs - modDepth) * smoothCoef;
         revMix += (target.revMix - revMix) * smoothCoef;
 
-        const float inL = left[i];
-        const float inR = right[i];
+        const float inL = left[i] * preGain;
+        const float inR = right[i] * preGain;
 
         const float lfoL = std::sin(2.0f * 3.14159265358979f * lfoPhase);
         const float lfoR = std::sin(2.0f * 3.14159265358979f * (lfoPhase + 0.5f));
@@ -97,8 +111,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float wetL = dL + revMix * rvL;
         const float wetR = dR + revMix * rvR;
 
-        left[i] = (1.0f - mixL) * inL + mixL * wetL;
-        right[i] = (1.0f - mixR) * inR + mixR * wetR;
+        left[i] = ((1.0f - mixL) * inL + mixL * wetL) * master;
+        right[i] = ((1.0f - mixR) * inR + mixR * wetR) * master;
     }
 }
 
@@ -107,6 +121,8 @@ void StereoDelayHallEngine::reset() {
     lineR.clear();
     reverb.clear();
     lfoPhase = 0.0f;
+    preGain = targetPreGain;
+    master = targetMaster;
     mixL = target.mixL;
     mixR = target.mixR;
     feedback = target.feedback;

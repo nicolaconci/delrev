@@ -20,6 +20,7 @@ guitar, vocals, synths, full mixes.
 | Mod Depth  | 0–30 ms    | 4 ms    | delay-time deviation                               |
 | Rev Decay  | 0.2–10 s   | 3 s     | hall decay, mapped to RT60 (log scale)             |
 | Rev Mix    | 0–100 %    | 35 %    | reverb amount on the repeats                       |
+| 100% Wet (button) | on/off | off | forces Mix L and Mix R to 100% — use it when the plugin sits on an aux bus/send (wet-only), without touching the Mix knobs |
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
 stereo image. The delay line is read with cubic interpolation.

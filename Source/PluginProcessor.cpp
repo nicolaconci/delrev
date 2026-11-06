@@ -22,6 +22,8 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
         layout.add(std::make_unique<AudioParameterFloat>(ParameterID{id, 1}, name, range, def, attrs));
     };
 
+    addFloat("preGain", "Pre Gain", {-24.0f, 24.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
+    addFloat("master", "Master", {-48.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
     addFloat("mixL", "Mix L", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
     addFloat("mixR", "Mix R", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
     addFloat("feedback", "Feedback", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
@@ -41,6 +43,8 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("revDecay", "Rev Decay", decayRange, 3.0f, makeAttrs("s", 2));
     addFloat("revMix", "Rev Mix", {0.0f, 100.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
 
+    layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
+
     return layout;
 }
 
@@ -49,6 +53,8 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
                          .withInput("Input", AudioChannelSet::stereo(), true)
                          .withOutput("Output", AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "PARAMETERS", createParameterLayout()) {
+    preGainParam = apvts.getRawParameterValue("preGain");
+    masterParam = apvts.getRawParameterValue("master");
     mixLParam = apvts.getRawParameterValue("mixL");
     mixRParam = apvts.getRawParameterValue("mixR");
     feedbackParam = apvts.getRawParameterValue("feedback");
@@ -58,6 +64,7 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     modDepthParam = apvts.getRawParameterValue("modDepth");
     revDecayParam = apvts.getRawParameterValue("revDecay");
     revMixParam = apvts.getRawParameterValue("revMix");
+    wet100Param = apvts.getRawParameterValue("wet100");
 }
 
 StereoDelayHallAudioProcessor::~StereoDelayHallAudioProcessor() = default;
@@ -88,6 +95,8 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
         return;
 
     dsp::EngineParams p;
+    p.preGainDb = preGainParam->load();
+    p.masterDb = masterParam->load();
     p.mixL = mixLParam->load() / 100.0f;
     p.mixR = mixRParam->load() / 100.0f;
     p.feedback = feedbackParam->load() / 100.0f;
@@ -97,6 +106,10 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.modDepthMs = modDepthParam->load();
     p.revDecaySec = revDecayParam->load();
     p.revMix = revMixParam->load() / 100.0f;
+    if (wet100Param->load() > 0.5f) {
+        p.mixL = 1.0f;
+        p.mixR = 1.0f;
+    }
     engine.setParams(p);
 
     float* left = buffer.getWritePointer(0);

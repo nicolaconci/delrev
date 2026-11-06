@@ -39,6 +39,8 @@ private:
     dsp::StereoDelayHallEngine engine;
     juce::AudioBuffer<float> monoScratch;
 
+    std::atomic<float>* preGainParam = nullptr;
+    std::atomic<float>* masterParam = nullptr;
     std::atomic<float>* mixLParam = nullptr;
     std::atomic<float>* mixRParam = nullptr;
     std::atomic<float>* feedbackParam = nullptr;
@@ -48,6 +50,7 @@ private:
     std::atomic<float>* modDepthParam = nullptr;
     std::atomic<float>* revDecayParam = nullptr;
     std::atomic<float>* revMixParam = nullptr;
+    std::atomic<float>* wet100Param = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessor)
 };
