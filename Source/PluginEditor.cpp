@@ -14,7 +14,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     const char* names[8] = {"Mix", "Feedback", "Time L", "Time R", "Mod Rate", "Mod Depth", "Rev Decay", "Rev Mix"};
 
     for (int i = 0; i < 8; ++i) {
-        sliders[i].setSliderStyle(Slider::RotarySliderWithVerticalDrag);
+        sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
         sliders[i].setTextBoxStyle(Slider::TextBoxBelow, false, 80, 18);
         sliders[i].setColour(Slider::rotarySliderFillColourId, Colours::orange);
         sliders[i].setColour(Slider::textBoxTextColourId, Colours::white);
