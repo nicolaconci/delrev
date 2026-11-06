@@ -22,7 +22,11 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     master = targetMaster;
     mixL = def.mixL;
     mixR = def.mixR;
-    feedback = def.feedback;
+    feedbackL = def.feedbackL;
+    feedbackR = def.feedbackR;
+    smear = def.smear;
+    lpL = 0.0f;
+    lpR = 0.0f;
     timeL = def.timeLms;
     timeR = def.timeRms;
     modRate = def.modRateHz;
@@ -39,7 +43,9 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.masterDb = std::clamp(c.masterDb, -48.0f, 12.0f);
     c.mixL = std::clamp(c.mixL, 0.0f, 1.0f);
     c.mixR = std::clamp(c.mixR, 0.0f, 1.0f);
-    c.feedback = std::clamp(c.feedback, 0.0f, 0.95f);
+    c.feedbackL = std::clamp(c.feedbackL, 0.0f, 0.95f);
+    c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
+    c.smear = std::clamp(c.smear, 0.0f, 1.0f);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
     c.modRateHz = std::clamp(c.modRateHz, 0.01f, 20.0f);
@@ -54,7 +60,9 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         master = targetMaster;
         mixL = c.mixL;
         mixR = c.mixR;
-        feedback = c.feedback;
+        feedbackL = c.feedbackL;
+        feedbackR = c.feedbackR;
+        smear = c.smear;
         timeL = c.timeLms;
         timeR = c.timeRms;
         modRate = c.modRateHz;
@@ -76,7 +84,9 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         master += (targetMaster - master) * smoothCoef;
         mixL += (target.mixL - mixL) * smoothCoef;
         mixR += (target.mixR - mixR) * smoothCoef;
-        feedback += (target.feedback - feedback) * smoothCoef;
+        feedbackL += (target.feedbackL - feedbackL) * smoothCoef;
+        feedbackR += (target.feedbackR - feedbackR) * smoothCoef;
+        smear += (target.smear - smear) * smoothCoef;
         timeL += (target.timeLms - timeL) * smoothCoef;
         timeR += (target.timeRms - timeR) * smoothCoef;
         modRate += (target.modRateHz - modRate) * smoothCoef;
@@ -100,9 +110,15 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        lineL.write(inL + feedback * dL);
+        // smear: one-pole lowpass in the feedback path only, so the first
+        // repeat stays intact and later repeats get a softer attack
+        const float alpha = std::max(0.02f, 1.0f - 0.98f * smear);
+        lpL += alpha * (dL - lpL);
+        lpR += alpha * (dR - lpR);
+
+        lineL.write(inL + feedbackL * lpL);
         lineL.advance();
-        lineR.write(inR + feedback * dR);
+        lineR.write(inR + feedbackR * lpR);
         lineR.advance();
 
         float rvL = 0.0f, rvR = 0.0f;
@@ -125,7 +141,11 @@ void StereoDelayHallEngine::reset() {
     master = targetMaster;
     mixL = target.mixL;
     mixR = target.mixR;
-    feedback = target.feedback;
+    feedbackL = target.feedbackL;
+    feedbackR = target.feedbackR;
+    smear = target.smear;
+    lpL = 0.0f;
+    lpR = 0.0f;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;

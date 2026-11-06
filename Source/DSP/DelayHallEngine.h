@@ -10,7 +10,9 @@ struct EngineParams {
     float masterDb = 0.0f;    // output/master volume (dB)
     float mixL = 0.30f;       // 0..1 dry/wet, left channel
     float mixR = 0.30f;       // 0..1 dry/wet, right channel
-    float feedback = 0.35f;   // 0..0.95
+    float feedbackL = 0.35f;  // 0..0.95, left channel
+    float feedbackR = 0.35f;  // 0..0.95, right channel
+    float smear = 0.0f;       // 0..1 lowpass in the feedback path (softens repeat attacks)
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
     float modRateHz = 0.8f;   // modulation rate (Hz)
@@ -109,7 +111,9 @@ private:
     EngineParams target {};
     float preGain = 1.0f, master = 1.0f; // smoothed linear gains
     float targetPreGain = 1.0f, targetMaster = 1.0f;
-    float mixL = 0.0f, mixR = 0.0f, feedback = 0.0f, timeL = 0.0f, timeR = 0.0f;
+    float mixL = 0.0f, mixR = 0.0f, feedbackL = 0.0f, feedbackR = 0.0f, smear = 0.0f;
+    float lpL = 0.0f, lpR = 0.0f; // smear lowpass state
+    float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;
     bool paramsSnapped = false;

@@ -9,20 +9,28 @@ guitar, vocals, synths, full mixes.
 
 ## Parameters
 
-| Parameter  | Range      | Default | Notes                                              |
-|------------|------------|---------|----------------------------------------------------|
-| Pre Gain   | -24..+24 dB | 0 dB   | input gain, applied before dry/delay/feedback      |
-| Mix L      | 0–100 %    | 30 %    | dry/wet, left channel                              |
-| Mix R      | 0–100 %    | 30 %    | dry/wet, right channel (independent)               |
-| Feedback   | 0–95 %     | 35 %    | pre-reverb feedback (reverb tails don't recirculate) |
-| Time L     | 20–2000 ms | 375 ms  | left-channel delay time (log scale)                |
-| Time R     | 20–2000 ms | 500 ms  | right-channel delay time (independent)             |
-| Mod Rate   | 0.05–10 Hz | 0.8 Hz  | LFO speed (log scale)                              |
-| Mod Depth  | 0–30 ms    | 4 ms    | delay-time deviation                               |
-| Rev Decay  | 0.2–10 s   | 3 s     | hall decay, mapped to RT60 (log scale)             |
-| Rev Mix    | 0–100 %    | 35 %    | reverb amount on the repeats                       |
-| 100% Wet (button) | on/off | off | forces Mix L and Mix R to 100% — use it when the plugin sits on an aux bus/send (wet-only), without touching the Mix knobs |
-| Master     | -48..+12 dB | 0 dB   | output volume                                      |
+The UI is grouped into colour-coded sections — row 1: `PRE | LEFT | RIGHT |
+MASTER`, row 2: `SMEAR | MOD | REV | WET`.
+
+| Section | Parameter       | Range       | Default | Notes                                                            |
+|---------|-----------------|-------------|---------|------------------------------------------------------------------|
+| PRE     | Pre Gain        | -24..+24 dB | 0 dB    | input gain, before dry/delay/feedback                            |
+| LEFT    | Time L          | 20–2000 ms  | 375 ms  | left delay time (log scale)                                      |
+| LEFT    | Feedback L      | 0–95 %      | 35 %    | left feedback (pre-reverb: tails don't recirculate)              |
+| LEFT    | Mix L           | 0–100 %     | 30 %    | left dry/wet                                                     |
+| RIGHT   | Time R          | 20–2000 ms  | 500 ms  | right delay time (independent)                                   |
+| RIGHT   | Feedback R      | 0–95 %      | 35 %    | right feedback (independent)                                     |
+| RIGHT   | Mix R           | 0–100 %     | 30 %    | right dry/wet (independent)                                      |
+| MASTER  | Master          | -48..+12 dB | 0 dB    | output volume                                                    |
+| SMEAR   | Smear           | 0–100 %     | 0 %     | lowpass in the feedback loop: softens repeat attacks (1st repeat untouched) |
+| MOD     | Rate            | 0.05–10 Hz  | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                            |
+| MOD     | Depth           | 0–30 ms     | 4 ms    | delay-time deviation                                             |
+| REV     | Decay           | 0.2–10 s    | 3 s     | hall decay, RT60-mapped (log scale)                              |
+| REV     | Mix             | 0–100 %     | 35 %    | reverb amount on the repeats                                     |
+| WET     | 100% Wet (button) | on/off    | off     | forces Mix L/R to 100% — for aux bus/send (wet-only), knobs untouched |
+
+Section colours: PRE/MASTER orange, LEFT blue, RIGHT green, SMEAR grey,
+MOD purple, REV teal.
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
 stereo image. The delay line is read with cubic interpolation.
@@ -40,10 +48,11 @@ CMakeLists.txt                       CMake project (JUCE via FetchContent)
 Signal flow (per sample, per channel):
 
 ```
-input ─► [pre gain] ──┬──────────────────► dry ─┐
-                      │                         ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
-                      └─► [delay line + fb] ─► d ─┴─► outR = ((1-mixR)*dryR + mixR*wetR) * master
-                                       │               wet = d + revMix * hall(d)
+input ─► [pre gain] ──┬───────────────────────► dry ─┐
+                      │                              ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
+                      └─► [delay line + feedbackL/R × smear-lowpass] ─► d
+                                       │                 ├─► outR = ((1-mixR)*dryR + mixR*wetR) * master
+                                       │                 │   wet = d + revMix * hall(d)
                                        └─► hall reverb (repeats only)
 ```
 

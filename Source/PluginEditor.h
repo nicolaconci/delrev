@@ -15,10 +15,14 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
 
     juce::Label titleLabel;
-    static constexpr int numControls = 11;
-    juce::Slider sliders[numControls];
-    juce::Label labels[numControls];
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numControls];
+
+    static constexpr int numKnobs = 13;
+    juce::Slider sliders[numKnobs];
+    juce::Label labels[numKnobs];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numKnobs];
+
+    juce::GroupComponent groupPre, groupLeft, groupRight, groupMaster;
+    juce::GroupComponent groupSmear, groupMod, groupRev, groupWet;
     juce::ToggleButton wetButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
 

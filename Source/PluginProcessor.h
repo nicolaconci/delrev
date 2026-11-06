@@ -43,7 +43,9 @@ private:
     std::atomic<float>* masterParam = nullptr;
     std::atomic<float>* mixLParam = nullptr;
     std::atomic<float>* mixRParam = nullptr;
-    std::atomic<float>* feedbackParam = nullptr;
+    std::atomic<float>* feedbackLParam = nullptr;
+    std::atomic<float>* feedbackRParam = nullptr;
+    std::atomic<float>* smearParam = nullptr;
     std::atomic<float>* timeLParam = nullptr;
     std::atomic<float>* timeRParam = nullptr;
     std::atomic<float>* modRateParam = nullptr;

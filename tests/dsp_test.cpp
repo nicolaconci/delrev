@@ -48,7 +48,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mixL = 0.0f; p.mixR = 0.0f; p.feedback = 0.9f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
+        p.mixL = 0.0f; p.mixR = 0.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
         p.timeLms = 100.0f; p.timeRms = 200.0f;
         e.setParams(p);
         std::vector<float> l(8192), r(8192);
@@ -66,7 +66,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
@@ -87,7 +87,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.5f; p.timeLms = 100.0f; p.timeRms = 100.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.5f; p.feedbackR = 0.5f; p.timeLms = 100.0f; p.timeRms = 100.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
@@ -109,7 +109,7 @@ int main() {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
             p.modDepthMs = 0.0f; p.revMix = revMix; p.revDecaySec = 5.0f;
             e.setParams(p);
             std::vector<float> l(60000, 0.0f), r(60000, 0.0f);
@@ -131,7 +131,7 @@ int main() {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
             p.modRateHz = 1.0f; p.modDepthMs = depthMs; p.revMix = 0.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
@@ -157,7 +157,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.95f; p.timeLms = 50.0f; p.timeRms = 37.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.95f; p.feedbackR = 0.95f; p.timeLms = 50.0f; p.timeRms = 37.0f;
         p.modRateHz = 10.0f; p.modDepthMs = 30.0f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
         e.setParams(p);
         std::vector<float> l(44100), r(44100);
@@ -185,7 +185,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.5f; p.timeLms = 100.0f; p.timeRms = 450.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.5f; p.feedbackR = 0.5f; p.timeLms = 100.0f; p.timeRms = 450.0f;
         p.revMix = 1.0f; p.revDecaySec = 5.0f; p.modDepthMs = 0.0f;
         e.setParams(p);
         std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
@@ -199,7 +199,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(48000.0, 512);
         EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(32000, 0.0f), r(32000, 0.0f);
@@ -216,7 +216,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mixL = 1.0f; p.mixR = 0.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
+        p.mixL = 1.0f; p.mixR = 0.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(30000), r(30000);
@@ -243,7 +243,7 @@ int main() {
             e.prepare(sr, 512);
             EngineParams p;
             p.preGainDb = preDb; p.masterDb = masterDb;
-            p.mixL = mixL; p.mixR = mixR; p.feedback = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
+            p.mixL = mixL; p.mixR = mixR; p.feedbackL = 0.0f; p.feedbackR = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
             p.modDepthMs = 0.0f; p.revMix = 0.0f;
             e.setParams(p);
             std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
@@ -261,6 +261,36 @@ int main() {
         CHECK(std::fabs(pv - 0.5f) < 0.06f, "master -6 dB halves the output");
         auto dry = run(6.0206f, 0.0f, 0.0f, 0.0f);
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
+    }
+
+    // 11) smear lowpasses the feedback path: later repeats get a softer attack
+    {
+        auto run = [&](float smear) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.smear = smear;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        float pv = 0.0f;
+        auto noSmear = run(0.0f);
+        peakIndex(noSmear, 2 * t - 20, 2 * t + 20, &pv);
+        const float ref = pv;
+        auto smeared = run(1.0f);
+        peakIndex(smeared, 2 * t - 20, 2 * t + 20, &pv);
+        std::printf("  smear: 2nd repeat amp %.3f (no smear) vs %.3f (smear=1)\n", (double) ref, (double) pv);
+        CHECK(ref > 0.8f, "no smear: 2nd repeat strong");
+        CHECK(pv < 0.2f * ref, "smear=1: 2nd repeat heavily softened");
+        // first repeat must stay unfiltered even with smear = 1
+        peakIndex(smeared, t - 20, t + 20, &pv);
+        CHECK(pv > 0.8f, "smear does not touch the first repeat");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

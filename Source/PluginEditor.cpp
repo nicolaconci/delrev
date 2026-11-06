@@ -4,37 +4,79 @@ using namespace juce;
 
 StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoDelayHallAudioProcessor& p)
     : AudioProcessorEditor(&p), apvts(p.apvts) {
-    titleLabel.setText("Stereo Delay + Hall Reverb", dontSendNotification);
+    struct KnobDef {
+        const char* id;
+        const char* name;
+        Colour colour;
+    };
+    // Order matches the layout: row 1 = PRE | LEFT | RIGHT | MASTER, row 2 = SMEAR | MOD | REV | WET
+    static const KnobDef defs[numKnobs] = {
+        {"preGain",    "Pre Gain",   Colour(0xffffa500)}, // PRE
+        {"timeL",      "Time L",     Colour(0xff4da3ff)}, // LEFT
+        {"feedbackL",  "Feedback L", Colour(0xff4da3ff)},
+        {"mixL",       "Mix L",      Colour(0xff4da3ff)},
+        {"timeR",      "Time R",     Colour(0xff4dff88)}, // RIGHT
+        {"feedbackR",  "Feedback R", Colour(0xff4dff88)},
+        {"mixR",       "Mix R",      Colour(0xff4dff88)},
+        {"master",     "Master",     Colour(0xffffa500)}, // MASTER
+        {"smear",      "Smear",      Colour(0xffaaaaaa)}, // SMEAR
+        {"modRate",    "Rate",       Colour(0xffc77dff)}, // MOD
+        {"modDepth",   "Depth",      Colour(0xffc77dff)},
+        {"revDecay",   "Decay",      Colour(0xff40e0d0)}, // REV
+        {"revMix",     "Mix",        Colour(0xff40e0d0)},
+    };
+
+    titleLabel.setText("StereoDelayHall", dontSendNotification);
     titleLabel.setJustificationType(Justification::centred);
     titleLabel.setColour(Label::textColourId, Colours::white);
     titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
 
-    const char* ids[numControls] = {"preGain", "mixL", "mixR", "feedback", "timeL", "timeR", "modRate", "modDepth", "revDecay", "revMix", "master"};
-    const char* names[numControls] = {"Pre Gain", "Mix L", "Mix R", "Feedback", "Time L", "Time R", "Mod Rate", "Mod Depth", "Rev Decay", "Rev Mix", "Master"};
-
-    for (int i = 0; i < numControls; ++i) {
+    for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
         sliders[i].setTextBoxStyle(Slider::TextBoxBelow, false, 80, 18);
-        sliders[i].setColour(Slider::rotarySliderFillColourId, Colours::orange);
+        sliders[i].setColour(Slider::rotarySliderFillColourId, defs[i].colour);
         sliders[i].setColour(Slider::textBoxTextColourId, Colours::white);
         sliders[i].setColour(Slider::textBoxOutlineColourId, Colours::darkgrey);
         addAndMakeVisible(sliders[i]);
 
-        labels[i].setText(names[i], dontSendNotification);
+        labels[i].setText(defs[i].name, dontSendNotification);
         labels[i].setJustificationType(Justification::centred);
-        labels[i].setColour(Label::textColourId, Colours::lightgrey);
+        labels[i].setColour(Label::textColourId, defs[i].colour);
         addAndMakeVisible(labels[i]);
 
-        attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, ids[i], sliders[i]);
+        attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, defs[i].id, sliders[i]);
     }
+
+    auto setupGroup = [](GroupComponent& g, const char* text, Colour c) {
+        g.setText(text);
+        g.setColour(GroupComponent::outlineColourId, c);
+        g.setColour(GroupComponent::textColourId, c);
+        g.setTextLabelPosition(Justification::centredLeft);
+    };
+    setupGroup(groupPre, "PRE", Colour(0xffffa500));
+    setupGroup(groupLeft, "LEFT", Colour(0xff4da3ff));
+    setupGroup(groupRight, "RIGHT", Colour(0xff4dff88));
+    setupGroup(groupMaster, "MASTER", Colour(0xffffa500));
+    setupGroup(groupSmear, "SMEAR", Colour(0xffaaaaaa));
+    setupGroup(groupMod, "MOD", Colour(0xffc77dff));
+    setupGroup(groupRev, "REV", Colour(0xff40e0d0));
+    setupGroup(groupWet, "WET", Colour(0xffeeeeee));
+    addAndMakeVisible(groupPre);
+    addAndMakeVisible(groupLeft);
+    addAndMakeVisible(groupRight);
+    addAndMakeVisible(groupMaster);
+    addAndMakeVisible(groupSmear);
+    addAndMakeVisible(groupMod);
+    addAndMakeVisible(groupRev);
+    addAndMakeVisible(groupWet);
 
     wetButton.setButtonText("100% Wet");
     wetButton.setColour(ToggleButton::textColourId, Colours::white);
     addAndMakeVisible(wetButton);
     wetAttachment = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment>(apvts, "wet100", wetButton);
 
-    setSize(760, 440);
+    setSize(920, 470);
 }
 
 StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() = default;
@@ -45,25 +87,65 @@ void StereoDelayHallAudioProcessorEditor::paint(Graphics& g) {
 
 void StereoDelayHallAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(8);
-    titleLabel.setBounds(area.removeFromTop(28));
+    titleLabel.setBounds(area.removeFromTop(26));
+    area.removeFromTop(6);
 
-    const int cols = 4;
-    const int rows = 3;
-    const int cellW = area.getWidth() / cols;
-    const int cellH = area.getHeight() / rows;
+    auto cellOf = [](Rectangle<int> groupArea, int index, int count) {
+        const int w = (groupArea.getWidth() - 8) / count;
+        return Rectangle<int>(groupArea.getX() + 4 + index * w, groupArea.getY() + 14,
+                              w, groupArea.getHeight() - 18);
+    };
+    auto placeKnob = [&](int i, Rectangle<int> cell) {
+        labels[i].setBounds(cell.removeFromTop(16));
+        sliders[i].setBounds(cell.reduced(4));
+    };
 
-    for (int i = 0; i < numControls; ++i) {
-        const int col = i % cols;
-        const int row = i / cols;
-        auto cell = Rectangle<int>(area.getX() + col * cellW, area.getY() + row * cellH, cellW, cellH);
-        labels[i].setBounds(cell.removeFromTop(18));
-        sliders[i].setBounds(cell.reduced(6));
-    }
+    // Row 1: PRE | LEFT (Time L, Feedback L, Mix L) | RIGHT (Time R, Feedback R, Mix R) | MASTER
+    auto row1 = area.removeFromTop(190);
 
-    {
-        const int col = numControls % cols;
-        const int row = numControls / cols;
-        auto cell = Rectangle<int>(area.getX() + col * cellW, area.getY() + row * cellH, cellW, cellH);
-        wetButton.setBounds(cell.reduced(6).withSizeKeepingCentre(cell.getWidth() - 12, 28));
-    }
+    auto pre = row1.removeFromLeft(96);
+    groupPre.setBounds(pre);
+    placeKnob(0, pre.reduced(4));
+    row1.removeFromLeft(8);
+
+    auto left = row1.removeFromLeft(320);
+    groupLeft.setBounds(left);
+    for (int i = 0; i < 3; ++i)
+        placeKnob(1 + i, cellOf(left, i, 3));
+    row1.removeFromLeft(8);
+
+    auto right = row1.removeFromLeft(320);
+    groupRight.setBounds(right);
+    for (int i = 0; i < 3; ++i)
+        placeKnob(4 + i, cellOf(right, i, 3));
+    row1.removeFromLeft(8);
+
+    auto master = row1;
+    groupMaster.setBounds(master);
+    placeKnob(7, master.reduced(4));
+
+    // Row 2: SMEAR | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
+    auto row2 = area;
+    row2.removeFromTop(8);
+
+    auto smear = row2.removeFromLeft(140);
+    groupSmear.setBounds(smear);
+    placeKnob(8, smear.reduced(4));
+    row2.removeFromLeft(8);
+
+    auto mod = row2.removeFromLeft(220);
+    groupMod.setBounds(mod);
+    for (int i = 0; i < 2; ++i)
+        placeKnob(9 + i, cellOf(mod, i, 2));
+    row2.removeFromLeft(8);
+
+    auto rev = row2.removeFromLeft(220);
+    groupRev.setBounds(rev);
+    for (int i = 0; i < 2; ++i)
+        placeKnob(11 + i, cellOf(rev, i, 2));
+    row2.removeFromLeft(8);
+
+    auto wet = row2;
+    groupWet.setBounds(wet);
+    wetButton.setBounds(wet.withSizeKeepingCentre(120, 30).withY(wet.getCentreY() - 15));
 }
