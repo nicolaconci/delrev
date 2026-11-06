@@ -11,7 +11,8 @@ guitar, vocals, synths, full mixes.
 
 | Parameter  | Range      | Default | Notes                                              |
 |------------|------------|---------|----------------------------------------------------|
-| Mix        | 0–100 %    | 30 %    | dry/wet                                            |
+| Mix L      | 0–100 %    | 30 %    | dry/wet, left channel                              |
+| Mix R      | 0–100 %    | 30 %    | dry/wet, right channel (independent)               |
 | Feedback   | 0–95 %     | 35 %    | pre-reverb feedback (reverb tails don't recirculate) |
 | Time L     | 20–2000 ms | 375 ms  | left-channel delay time (log scale)                |
 | Time R     | 20–2000 ms | 500 ms  | right-channel delay time (independent)             |
@@ -37,13 +38,24 @@ Signal flow (per sample, per channel):
 
 ```
 input ──┬──────────────────────────────► dry ─┐
-        │                                      ├─► out = (1-mix)*dry + mix*wet
-        └─► [delay line + feedback] ─► d ─────┴─► wet = d + revMix * hall(d)
-                                    │
+        │                                      ├─► outL = (1-mixL)*dryL + mixL*wetL
+        └─► [delay line + feedback] ─► d ─────┴─► outR = (1-mixR)*dryR + mixR*wetR
+                                    │               wet = d + revMix * hall(d)
                                     └─► hall reverb (repeats only)
 ```
 
-## Building on Mac (produces VST3 + AU + Standalone)
+## Quick setup on macOS (one command)
+
+```sh
+./setup.sh
+```
+
+Run from the repository root: it configures CMake, builds VST3 + AU +
+Standalone, runs the DSP unit tests, signs the bundles (ad-hoc) and installs
+them into `~/Library/Audio/Plug-Ins/`, **overwriting any previous install**.
+Then restart your DAW (or run `killall -9 AudioComponentRegistrar`).
+
+## Manual build on Mac (produces VST3 + AU + Standalone)
 
 Prerequisites: **Xcode** (with Command Line Tools) and **CMake** (`brew install cmake`).
 
