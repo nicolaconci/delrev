@@ -32,6 +32,10 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
 
+    // single-knob sections (PRE, MASTER, SMEAR) show only the coloured group
+    // title, not an extra label above the knob
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
+
     for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
         sliders[i].setTextBoxStyle(Slider::TextBoxBelow, false, 80, 18);
@@ -43,10 +47,21 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         labels[i].setText(defs[i].name, dontSendNotification);
         labels[i].setJustificationType(Justification::centred);
         labels[i].setColour(Label::textColourId, defs[i].colour);
-        addAndMakeVisible(labels[i]);
+        if (hasInnerLabel(i))
+            addAndMakeVisible(labels[i]);
 
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, defs[i].id, sliders[i]);
     }
+
+    smearCurveBox.addItem("Linear", 1);
+    smearCurveBox.addItem("Log", 2);
+    smearCurveBox.addItem("Exp", 3);
+    smearCurveBox.setColour(ComboBox::textColourId, Colours::white);
+    smearCurveBox.setColour(ComboBox::backgroundColourId, Colour(0xff2a2a32));
+    smearCurveBox.setColour(ComboBox::outlineColourId, Colour(0xffaaaaaa));
+    smearCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
+    addAndMakeVisible(smearCurveBox);
+    smearCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "smearCurve", smearCurveBox);
 
     auto setupGroup = [](GroupComponent& g, const char* text, Colour c) {
         g.setText(text);
@@ -95,9 +110,14 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         return Rectangle<int>(groupArea.getX() + 4 + index * w, groupArea.getY() + 14,
                               w, groupArea.getHeight() - 18);
     };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
     auto placeKnob = [&](int i, Rectangle<int> cell) {
-        labels[i].setBounds(cell.removeFromTop(16));
+        if (hasInnerLabel(i))
+            labels[i].setBounds(cell.removeFromTop(16));
         sliders[i].setBounds(cell.reduced(4));
+    };
+    auto singleCell = [](Rectangle<int> r) {
+        return Rectangle<int>(r.getX() + 6, r.getY() + 18, r.getWidth() - 12, r.getHeight() - 22);
     };
 
     // Row 1: PRE | LEFT (Time L, Feedback L, Mix L) | RIGHT (Time R, Feedback R, Mix R) | MASTER
@@ -105,7 +125,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
 
     auto pre = row1.removeFromLeft(96);
     groupPre.setBounds(pre);
-    placeKnob(0, pre.reduced(4));
+    placeKnob(0, singleCell(pre));
     row1.removeFromLeft(8);
 
     auto left = row1.removeFromLeft(320);
@@ -122,15 +142,17 @@ void StereoDelayHallAudioProcessorEditor::resized() {
 
     auto master = row1;
     groupMaster.setBounds(master);
-    placeKnob(7, master.reduced(4));
+    placeKnob(7, singleCell(master));
 
     // Row 2: SMEAR | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
     auto row2 = area;
     row2.removeFromTop(8);
 
-    auto smear = row2.removeFromLeft(140);
+    auto smear = row2.removeFromLeft(170);
     groupSmear.setBounds(smear);
-    placeKnob(8, smear.reduced(4));
+    auto smearCell = singleCell(smear);
+    smearCurveBox.setBounds(smearCell.removeFromBottom(22));
+    placeKnob(8, smearCell);
     row2.removeFromLeft(8);
 
     auto mod = row2.removeFromLeft(220);

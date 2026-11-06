@@ -293,6 +293,36 @@ int main() {
         CHECK(pv > 0.8f, "smear does not touch the first repeat");
     }
 
+    // 12) smear curve selection: linear / log / exp map smear to different filter strengths
+    {
+        auto run = [&](int curve, float smear) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.smear = smear;
+            p.smearCurve = curve;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        float a[3] = {0.0f, 0.0f, 0.0f};
+        for (int c = 0; c < 3; ++c) {
+            auto v = run(c, 0.5f);
+            peakIndex(v, 2 * t - 20, 2 * t + 20, &a[c]);
+        }
+        std::printf("  smear=0.5 2nd-repeat amp: linear %.3f, log %.3f, exp %.3f\n",
+                    (double) a[0], (double) a[1], (double) a[2]);
+        CHECK(a[0] > 0.35f && a[0] < 0.55f, "linear curve @0.5 ~0.46");
+        CHECK(a[1] > 0.10f && a[1] < 0.22f, "log curve @0.5 ~0.16");
+        CHECK(a[2] > 0.02f && a[2] < 0.08f, "exp curve @0.5 ~0.045");
+        CHECK(a[0] > a[1] && a[1] > a[2], "curves ordered linear > log > exp");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

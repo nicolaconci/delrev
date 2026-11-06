@@ -13,6 +13,7 @@ struct EngineParams {
     float feedbackL = 0.35f;  // 0..0.95, left channel
     float feedbackR = 0.35f;  // 0..0.95, right channel
     float smear = 0.0f;       // 0..1 lowpass in the feedback path (softens repeat attacks)
+    int smearCurve = 0;       // 0 = linear, 1 = log, 2 = exp mapping of smear -> filter coefficient
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
     float modRateHz = 0.8f;   // modulation rate (Hz)

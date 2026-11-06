@@ -46,6 +46,7 @@ private:
     std::atomic<float>* feedbackLParam = nullptr;
     std::atomic<float>* feedbackRParam = nullptr;
     std::atomic<float>* smearParam = nullptr;
+    std::atomic<float>* smearCurveParam = nullptr;
     std::atomic<float>* timeLParam = nullptr;
     std::atomic<float>* timeRParam = nullptr;
     std::atomic<float>* modRateParam = nullptr;

@@ -46,6 +46,8 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("revMix", "Rev Mix", {0.0f, 100.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
 
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
+    layout.add(std::make_unique<AudioParameterChoice>(ParameterID{"smearCurve", 1}, "Smear Curve",
+                                                       StringArray{"Linear", "Log", "Exp"}, 0));
 
     return layout;
 }
@@ -62,6 +64,7 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     feedbackLParam = apvts.getRawParameterValue("feedbackL");
     feedbackRParam = apvts.getRawParameterValue("feedbackR");
     smearParam = apvts.getRawParameterValue("smear");
+    smearCurveParam = apvts.getRawParameterValue("smearCurve");
     timeLParam = apvts.getRawParameterValue("timeL");
     timeRParam = apvts.getRawParameterValue("timeR");
     modRateParam = apvts.getRawParameterValue("modRate");
@@ -106,6 +109,7 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.feedbackL = feedbackLParam->load() / 100.0f;
     p.feedbackR = feedbackRParam->load() / 100.0f;
     p.smear = smearParam->load() / 100.0f;
+    p.smearCurve = (int) smearCurveParam->load();
     p.timeLms = timeLParam->load();
     p.timeRms = timeRParam->load();
     p.modRateHz = modRateParam->load();

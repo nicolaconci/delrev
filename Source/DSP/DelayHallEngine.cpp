@@ -46,6 +46,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.feedbackL = std::clamp(c.feedbackL, 0.0f, 0.95f);
     c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
     c.smear = std::clamp(c.smear, 0.0f, 1.0f);
+    c.smearCurve = std::clamp(c.smearCurve, 0, 2);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
     c.modRateHz = std::clamp(c.modRateHz, 0.01f, 20.0f);
@@ -111,8 +112,15 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dR = lineR.readCubic(offR);
 
         // smear: one-pole lowpass in the feedback path only, so the first
-        // repeat stays intact and later repeats get a softer attack
-        const float alpha = std::max(0.02f, 1.0f - 0.98f * smear);
+        // repeat stays intact and later repeats get a softer attack.
+        // The smear -> coefficient mapping is selectable (linear/log/exp).
+        float alpha;
+        switch (target.smearCurve) {
+            case 1:  alpha = std::pow(std::max(0.0f, 1.0f - smear), 2.5f); break; // log
+            case 2:  alpha = std::exp(-6.0f * smear); break;                      // exp
+            default: alpha = 1.0f - 0.98f * smear; break;                         // linear
+        }
+        alpha = std::max(0.01f, alpha);
         lpL += alpha * (dL - lpL);
         lpR += alpha * (dR - lpR);
 
