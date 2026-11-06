@@ -263,15 +263,15 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
-    // 11) smear smooths the attack of every repeat over ~smearDurMs (read-side lowpass)
+    // 11) attack: fade-in on every repeat incl. the first; feedback stays raw (no filtering in the loop)
     {
-        auto run = [&](float smear, float durMs) {
+        auto run = [&](float attackMs) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.smear = smear; p.smearDurMs = durMs;
+            p.attackMs = attackMs; p.attackCurve = 0;
             e.setParams(p);
             std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
             l[0] = 1.0f;
@@ -279,52 +279,58 @@ int main() {
             return l;
         };
         const int t = (int) (0.100 * sr);
+        const int A = t; // attack = 100 ms
         float pv = 0.0f;
-        auto noSmear = run(0.0f, 100.0f);
-        peakIndex(noSmear, t - 20, t + 20, &pv);
+        auto noAtk = run(0.0f);
+        peakIndex(noAtk, t - 20, t + 20, &pv);
         const float ref = pv; // ~1.0
-        auto smeared = run(1.0f, 100.0f);
-        peakIndex(smeared, t - 20, t + 20, &pv);
+        auto atk = run(100.0f);
+        peakIndex(atk, t - 20, t + 20, &pv);
         const float peakNear = pv;
-        const double energy = rms(smeared, t + 10, t + 4000);
-        auto longDur = run(1.0f, 500.0f);
-        peakIndex(longDur, t - 20, t + 20, &pv);
+        const double energy = rms(atk, t + 10, t + A);
+        const double energy2nd = rms(atk, 2 * t + 10, 2 * t + A);
+        auto atkLong = run(200.0f);
+        peakIndex(atkLong, t - 20, t + 20, &pv);
         const float peakLong = pv;
-        std::printf("  smear: no-smear 1st peak %.3f; smeared@100ms peak %.5f rms %.5f; @500ms peak %.5f\n",
-                    (double) ref, (double) peakNear, energy, (double) peakLong);
-        CHECK(ref > 0.8f, "no smear: 1st repeat peak ~1.0");
-        CHECK(peakNear < 0.2f * ref, "smear softens the attack of the 1st repeat too");
-        CHECK(energy > 1e-5, "smear spreads the repeat energy over the duration");
-        CHECK(peakLong < peakNear, "longer smear duration -> even softer attack");
+        std::printf("  attack: none peak %.3f; @100ms peak %.5f rms %.5f (2nd rms %.5f); @200ms peak %.5f\n",
+                    (double) ref, (double) peakNear, energy, energy2nd, (double) peakLong);
+        CHECK(ref > 0.8f, "attack=0: 1st repeat peak ~1.0");
+        CHECK(peakNear < 0.2f * ref, "attack softens the 1st repeat onset");
+        CHECK(energy > 1e-5, "attack spreads the repeat over its duration");
+        CHECK(energy2nd > 1e-5, "feedback not filtered: 2nd repeat still present");
+        CHECK(peakLong < peakNear, "longer attack -> softer onset");
     }
 
-    // 12) smear curve shapes amount -> effective duration (dur fixed at 100 ms)
+    // 12) attack curve shapes the fade-in ramp (step input): log fast, linear mid, exp slow
     {
-        auto run = [&](int curve, float smear) {
+        auto run = [&](int curve) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.smear = smear; p.smearDurMs = 100.0f; p.smearCurve = curve;
+            p.attackMs = 100.0f; p.attackCurve = curve;
             e.setParams(p);
-            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
-            l[0] = 1.0f;
+            std::vector<float> l(20000, 1.0f), r(20000, 1.0f); // step input
             e.process(l.data(), r.data(), 20000);
             return l;
         };
         const int t = (int) (0.100 * sr);
-        float a[3] = {0.0f, 0.0f, 0.0f};
+        const int A = t; // attack = 100 ms
+        float mid[3], full[3];
         for (int c = 0; c < 3; ++c) {
-            auto v = run(c, 0.2f);
-            peakIndex(v, t - 20, t + 20, &a[c]);
+            auto v = run(c);
+            mid[c] = v[(size_t) (t + A / 2)];
+            full[c] = v[(size_t) (t + A)];
         }
-        std::printf("  smear=0.2 dur=100ms 1st-repeat peak: linear %.5f, log %.5f, exp %.5f\n",
-                    (double) a[0], (double) a[1], (double) a[2]);
-        // bigger peak = less filtering: exp (eff=s^2.5) filters least at low amount, log (s^0.4) most
-        CHECK(a[2] > a[0] && a[0] > a[1], "curve ordering at 0.2: exp > linear > log (peak amp)");
-        CHECK(a[2] > 0.005f, "exp curve keeps the repeat clearly audible at low amount");
-        CHECK(a[1] < 0.001f, "log curve already heavy at low amount");
+        std::printf("  attack curves @half: linear %.3f log %.3f exp %.3f; @full: %.3f %.3f %.3f\n",
+                    (double) mid[0], (double) mid[1], (double) mid[2],
+                    (double) full[0], (double) full[1], (double) full[2]);
+        CHECK(mid[0] > 0.4f && mid[0] < 0.6f, "linear ramp ~0.5 at half attack");
+        CHECK(mid[1] > mid[0] && mid[0] > mid[2], "at half attack: log > linear > exp");
+        CHECK(full[0] > 0.95f, "linear reaches full level at attack end");
+        CHECK(full[2] > 0.55f && full[2] < 0.7f, "exp reaches ~0.63 at attack end");
+        CHECK(full[1] > 0.9f, "log reaches ~full at attack end");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,

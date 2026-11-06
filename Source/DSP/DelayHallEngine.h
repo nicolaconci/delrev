@@ -12,9 +12,8 @@ struct EngineParams {
     float mixR = 0.30f;       // 0..1 dry/wet, right channel
     float feedbackL = 0.35f;  // 0..0.95, left channel
     float feedbackR = 0.35f;  // 0..0.95, right channel
-    float smear = 0.0f;       // 0..1 smear amount
-    float smearDurMs = 100.0f; // 1..500 ms: attack-ramp length of each repeat at smear = 100%
-    int smearCurve = 0;       // 0 = linear, 1 = log, 2 = exp mapping of amount -> effective duration
+    float attackMs = 0.0f;    // 0..maxAttackMs: fade-in length applied to every repeat (incl. the first)
+    int attackCurve = 0;      // 0 = linear, 1 = log, 2 = exp shape of the fade-in
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
     float modRateHz = 0.8f;   // modulation rate (Hz)
@@ -36,6 +35,7 @@ public:
     static constexpr float maxTimeMs = 2000.0f;
     static constexpr float maxModDepthMs = 30.0f;
     static constexpr float minTimeMs = 5.0f;
+    static constexpr float maxAttackMs = 200.0f;
 
 private:
     struct DelayLine {
@@ -113,8 +113,13 @@ private:
     EngineParams target {};
     float preGain = 1.0f, master = 1.0f; // smoothed linear gains
     float targetPreGain = 1.0f, targetMaster = 1.0f;
-    float mixL = 0.0f, mixR = 0.0f, feedbackL = 0.0f, feedbackR = 0.0f, smear = 0.0f;
-    float lpL = 0.0f, lpR = 0.0f; // smear lowpass state
+    float mixL = 0.0f, mixR = 0.0f, feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
+    // attack fade-in state (applied to the wet output only, never fed back)
+    std::vector<float> histL, histR; // circular history for the box average
+    int histPos = 0;
+    double sumL = 0.0, sumR = 0.0;
+    int lastBoxW = -1;
+    float lpL = 0.0f, lpR = 0.0f; // one-pole state (exp/log curves)
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

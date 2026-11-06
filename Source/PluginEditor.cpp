@@ -9,7 +9,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         const char* name;
         Colour colour;
     };
-    // Order matches the layout: row 1 = PRE | LEFT | RIGHT | MASTER, row 2 = SMEAR | MOD | REV | WET
+    // Order matches the layout: row 1 = PRE | LEFT | RIGHT | MASTER, row 2 = ATTACK | MOD | REV | WET
     static const KnobDef defs[numKnobs] = {
         {"preGain",    "Pre Gain",   Colour(0xffffa500)}, // PRE
         {"timeL",      "Time L",     Colour(0xff4da3ff)}, // LEFT
@@ -19,7 +19,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"feedbackR",  "Feedback R", Colour(0xff4dff88)},
         {"mixR",       "Mix R",      Colour(0xff4dff88)},
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
-        {"smear",      "Smear",      Colour(0xffaaaaaa)}, // SMEAR
+        {"attack",     "Attack",     Colour(0xffaaaaaa)}, // ATTACK
         {"modRate",    "Rate",       Colour(0xffc77dff)}, // MOD
         {"modDepth",   "Depth",      Colour(0xffc77dff)},
         {"revDecay",   "Decay",      Colour(0xff40e0d0)}, // REV
@@ -32,9 +32,9 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
 
-    // single-knob sections (PRE, MASTER, SMEAR) show only the coloured group
+    // single-knob sections (PRE, MASTER, ATTACK) show only the coloured group
     // title, not an extra label above the knob
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 7; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
 
     for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
@@ -53,15 +53,15 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, defs[i].id, sliders[i]);
     }
 
-    smearCurveBox.addItem("Linear", 1);
-    smearCurveBox.addItem("Log", 2);
-    smearCurveBox.addItem("Exp", 3);
-    smearCurveBox.setColour(ComboBox::textColourId, Colours::white);
-    smearCurveBox.setColour(ComboBox::backgroundColourId, Colour(0xff2a2a32));
-    smearCurveBox.setColour(ComboBox::outlineColourId, Colour(0xffaaaaaa));
-    smearCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
-    addAndMakeVisible(smearCurveBox);
-    smearCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "smearCurve", smearCurveBox);
+    attackCurveBox.addItem("Linear", 1);
+    attackCurveBox.addItem("Log", 2);
+    attackCurveBox.addItem("Exp", 3);
+    attackCurveBox.setColour(ComboBox::textColourId, Colours::white);
+    attackCurveBox.setColour(ComboBox::backgroundColourId, Colour(0xff2a2a32));
+    attackCurveBox.setColour(ComboBox::outlineColourId, Colour(0xffaaaaaa));
+    attackCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
+    addAndMakeVisible(attackCurveBox);
+    attackCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "attackCurve", attackCurveBox);
 
     auto setupGroup = [](GroupComponent& g, const char* text, Colour c) {
         g.setText(text);
@@ -73,7 +73,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     setupGroup(groupLeft, "LEFT", Colour(0xff4da3ff));
     setupGroup(groupRight, "RIGHT", Colour(0xff4dff88));
     setupGroup(groupMaster, "MASTER", Colour(0xffffa500));
-    setupGroup(groupSmear, "SMEAR", Colour(0xffaaaaaa));
+    setupGroup(groupAttack, "ATTACK", Colour(0xffaaaaaa));
     setupGroup(groupMod, "MOD", Colour(0xffc77dff));
     setupGroup(groupRev, "REV", Colour(0xff40e0d0));
     setupGroup(groupWet, "WET", Colour(0xffeeeeee));
@@ -81,7 +81,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     addAndMakeVisible(groupLeft);
     addAndMakeVisible(groupRight);
     addAndMakeVisible(groupMaster);
-    addAndMakeVisible(groupSmear);
+    addAndMakeVisible(groupAttack);
     addAndMakeVisible(groupMod);
     addAndMakeVisible(groupRev);
     addAndMakeVisible(groupWet);
@@ -110,7 +110,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         return Rectangle<int>(groupArea.getX() + 4 + index * w, groupArea.getY() + 14,
                               w, groupArea.getHeight() - 18);
     };
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 7; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
     auto placeKnob = [&](int i, Rectangle<int> cell) {
         if (hasInnerLabel(i))
             labels[i].setBounds(cell.removeFromTop(16));
@@ -144,28 +144,27 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     groupMaster.setBounds(master);
     placeKnob(7, singleCell(master));
 
-    // Row 2: SMEAR | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
+    // Row 2: ATTACK | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
     auto row2 = area;
     row2.removeFromTop(8);
 
-    auto smear = row2.removeFromLeft(260);
-    groupSmear.setBounds(smear);
-    auto smearArea = Rectangle<int>(smear.getX() + 4, smear.getY() + 14, smear.getWidth() - 8, smear.getHeight() - 18);
-    smearCurveBox.setBounds(smearArea.removeFromBottom(22));
-    for (int i = 0; i < 2; ++i)
-        placeKnob(8 + i, cellOf(smearArea, i, 2));
+    auto atk = row2.removeFromLeft(170);
+    groupAttack.setBounds(atk);
+    auto atkCell = singleCell(atk);
+    attackCurveBox.setBounds(atkCell.removeFromBottom(22));
+    placeKnob(8, atkCell);
     row2.removeFromLeft(8);
 
     auto mod = row2.removeFromLeft(220);
     groupMod.setBounds(mod);
     for (int i = 0; i < 2; ++i)
-        placeKnob(10 + i, cellOf(mod, i, 2));
+        placeKnob(9 + i, cellOf(mod, i, 2));
     row2.removeFromLeft(8);
 
     auto rev = row2.removeFromLeft(220);
     groupRev.setBounds(rev);
     for (int i = 0; i < 2; ++i)
-        placeKnob(12 + i, cellOf(rev, i, 2));
+        placeKnob(11 + i, cellOf(rev, i, 2));
     row2.removeFromLeft(8);
 
     auto wet = row2;

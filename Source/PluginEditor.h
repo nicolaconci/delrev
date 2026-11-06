@@ -16,15 +16,15 @@ private:
 
     juce::Label titleLabel;
 
-    static constexpr int numKnobs = 14;
+    static constexpr int numKnobs = 13;
     juce::Slider sliders[numKnobs];
     juce::Label labels[numKnobs];
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numKnobs];
 
     juce::GroupComponent groupPre, groupLeft, groupRight, groupMaster;
-    juce::GroupComponent groupSmear, groupMod, groupRev, groupWet;
-    juce::ComboBox smearCurveBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> smearCurveAttachment;
+    juce::GroupComponent groupAttack, groupMod, groupRev, groupWet;
+    juce::ComboBox attackCurveBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> attackCurveAttachment;
     juce::ToggleButton wetButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
 

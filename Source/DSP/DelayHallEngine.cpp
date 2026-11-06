@@ -13,6 +13,12 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
+    const int maxAttackSamples = (int) std::ceil(maxAttackMs * 0.001 * sr) + 2;
+    histL.assign((size_t) maxAttackSamples, 0.0f);
+    histR.assign((size_t) maxAttackSamples, 0.0f);
+    histPos = 0;
+    sumL = sumR = 0.0;
+    lastBoxW = -1;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -24,7 +30,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     mixR = def.mixR;
     feedbackL = def.feedbackL;
     feedbackR = def.feedbackR;
-    smear = def.smear;
+    attack = def.attackMs;
     lpL = 0.0f;
     lpR = 0.0f;
     timeL = def.timeLms;
@@ -45,9 +51,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.mixR = std::clamp(c.mixR, 0.0f, 1.0f);
     c.feedbackL = std::clamp(c.feedbackL, 0.0f, 0.95f);
     c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
-    c.smear = std::clamp(c.smear, 0.0f, 1.0f);
-    c.smearDurMs = std::clamp(c.smearDurMs, 1.0f, 500.0f);
-    c.smearCurve = std::clamp(c.smearCurve, 0, 2);
+    c.attackMs = std::clamp(c.attackMs, 0.0f, maxAttackMs);
+    c.attackCurve = std::clamp(c.attackCurve, 0, 2);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
     c.modRateHz = std::clamp(c.modRateHz, 0.01f, 20.0f);
@@ -64,7 +69,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         mixR = c.mixR;
         feedbackL = c.feedbackL;
         feedbackR = c.feedbackR;
-        smear = c.smear;
+        attack = c.attackMs;
         timeL = c.timeLms;
         timeR = c.timeRms;
         modRate = c.modRateHz;
@@ -88,7 +93,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         mixR += (target.mixR - mixR) * smoothCoef;
         feedbackL += (target.feedbackL - feedbackL) * smoothCoef;
         feedbackR += (target.feedbackR - feedbackR) * smoothCoef;
-        smear += (target.smear - smear) * smoothCoef;
+        attack += (target.attackMs - attack) * smoothCoef;
         timeL += (target.timeLms - timeL) * smoothCoef;
         timeR += (target.timeRms - timeR) * smoothCoef;
         modRate += (target.modRateHz - modRate) * smoothCoef;
@@ -112,26 +117,61 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        // smear: one-pole lowpass on the wet (read) side, so every repeat gets
-        // an attack ramp of ~smearDurMs; the curve shapes amount -> duration
-        const float s = smear;
-        float eff;
-        switch (target.smearCurve) {
-            case 1:  eff = std::pow(s, 0.4f); break;  // log: stronger at low-mid amount
-            case 2:  eff = std::pow(s, 2.5f); break;  // exp: only near max amount
-            default: eff = s; break;                  // linear
-        }
-        const float durSamples = std::max(1.0f, target.smearDurMs * sr * 0.001f);
-        const float alpha = (eff <= 0.0f) ? 1.0f : (1.0f - std::exp(-1.0f / (eff * durSamples)));
-        lpL += alpha * (dL - lpL);
-        lpR += alpha * (dR - lpR);
-        const float wL = lpL;
-        const float wR = lpR;
-
-        lineL.write(inL + feedbackL * wL);
+        // feedback uses the raw repeat: no filtering in the loop, so repeats
+        // never die out over time
+        lineL.write(inL + feedbackL * dL);
         lineL.advance();
-        lineR.write(inR + feedbackR * wR);
+        lineR.write(inR + feedbackR * dR);
         lineR.advance();
+
+        // attack: fade-in on the wet output, so every repeat (incl. the first)
+        // starts soft over ~attackMs; curve selects the ramp shape
+        float wL = dL, wR = dR;
+        const int A = (int) std::lround(attack * sr * 0.001f);
+        if (A > 1) {
+            const int M = (int) histL.size();
+            const int boxW = (target.attackCurve == 1) ? std::max(1, A / 2) : A;
+            if (boxW != lastBoxW) {
+                sumL = sumR = 0.0;
+                for (int n = 0; n < boxW; ++n) {
+                    sumL += histL[(size_t) ((histPos - n + M) % M)];
+                    sumR += histR[(size_t) ((histPos - n + M) % M)];
+                }
+                lastBoxW = boxW;
+            }
+            const int outIdx = (histPos - boxW + M) % M;
+            sumL += dL - histL[(size_t) outIdx];
+            sumR += dR - histR[(size_t) outIdx];
+            histL[(size_t) histPos] = dL;
+            histR[(size_t) histPos] = dR;
+            histPos = (histPos + 1) % M;
+
+            switch (target.attackCurve) {
+                case 2: { // exp: one-pole lowpass, tau = A (slow start, long tail)
+                    const float alpha = 1.0f - std::exp(-1.0f / (float) A);
+                    lpL += alpha * (dL - lpL);
+                    lpR += alpha * (dR - lpR);
+                    wL = lpL;
+                    wR = lpR;
+                    break;
+                }
+                case 1: { // log: box(A/2) then one-pole LP tau = A/4 (fast start)
+                    const float bl = (float) (sumL / boxW);
+                    const float br = (float) (sumR / boxW);
+                    const float alpha = 1.0f - std::exp(-4.0f / (float) A);
+                    lpL += alpha * (bl - lpL);
+                    lpR += alpha * (br - lpR);
+                    wL = lpL;
+                    wR = lpR;
+                    break;
+                }
+                default: { // linear: box moving average over A
+                    wL = (float) (sumL / boxW);
+                    wR = (float) (sumR / boxW);
+                    break;
+                }
+            }
+        }
 
         float rvL = 0.0f, rvR = 0.0f;
         reverb.process(wL, wR, rvL, rvR);
@@ -155,7 +195,12 @@ void StereoDelayHallEngine::reset() {
     mixR = target.mixR;
     feedbackL = target.feedbackL;
     feedbackR = target.feedbackR;
-    smear = target.smear;
+    attack = target.attackMs;
+    std::fill(histL.begin(), histL.end(), 0.0f);
+    std::fill(histR.begin(), histR.end(), 0.0f);
+    histPos = 0;
+    sumL = sumR = 0.0;
+    lastBoxW = -1;
     lpL = 0.0f;
     lpR = 0.0f;
     timeL = target.timeLms;

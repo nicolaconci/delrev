@@ -10,7 +10,7 @@ guitar, vocals, synths, full mixes.
 ## Parameters
 
 The UI is grouped into colour-coded sections — row 1: `PRE | LEFT | RIGHT |
-MASTER`, row 2: `SMEAR | MOD | REV | WET`.
+MASTER`, row 2: `ATTACK | MOD | REV | WET`.
 
 | Section | Parameter       | Range       | Default | Notes                                                            |
 |---------|-----------------|-------------|---------|------------------------------------------------------------------|
@@ -22,19 +22,19 @@ MASTER`, row 2: `SMEAR | MOD | REV | WET`.
 | RIGHT   | Feedback R      | 0–95 %      | 35 %    | right feedback (independent)                                     |
 | RIGHT   | Mix R           | 0–100 %     | 30 %    | right dry/wet (independent)                                      |
 | MASTER  | Master          | -48..+12 dB | 0 dB    | output volume                                                    |
-| SMEAR   | Smear           | 0–100 %     | 0 %     | amount of smear: softens the attack of every repeat               |
-| SMEAR   | Dur             | 1–500 ms    | 100 ms  | smear duration = attack-ramp length of each repeat at Smear 100%  |
-| SMEAR   | Curve (combo)   | Linear / Log / Exp | Linear | shape of amount → duration (Log acts early, Exp only near max)    |
+| ATTACK  | Attack          | 0–200 ms    | 0 ms    | fade-in applied to every repeat, incl. the first (wet only, the feedback loop stays raw) |
+| ATTACK  | Curve (combo)   | Linear / Log / Exp | Linear | shape of the fade-in ramp (Log = fast start, Exp = slow start)    |
 
-Smear is a one-pole lowpass on the wet (read) side of the delay: every repeat —
-including the first — gets its attack spread over the smear duration.
+The attack control smooths the wet repeats in the time domain: each repeat's
+waveform gets a fade-in of `Attack` ms. Linear = box moving average, Exp =
+one-pole lowpass, Log = box + lowpass (fast start).
 | MOD     | Rate            | 0.05–10 Hz  | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                            |
 | MOD     | Depth           | 0–30 ms     | 4 ms    | delay-time deviation                                             |
 | REV     | Decay           | 0.2–10 s    | 3 s     | hall decay, RT60-mapped (log scale)                              |
 | REV     | Mix             | 0–100 %     | 35 %    | reverb amount on the repeats                                     |
 | WET     | 100% Wet (button) | on/off    | off     | forces Mix L/R to 100% — for aux bus/send (wet-only), knobs untouched |
 
-Section colours: PRE/MASTER orange, LEFT blue, RIGHT green, SMEAR grey,
+Section colours: PRE/MASTER orange, LEFT blue, RIGHT green, ATTACK grey,
 MOD purple, REV teal.
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
