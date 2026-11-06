@@ -1,89 +1,88 @@
 # StereoDelayHall
 
-Plugin audio (VST3 + Audio Unit su macOS) per chitarra: **delay stereo** con tempi
-indipendenti per canale sinistro/destro, **modulazione** del tempo di delay
-(rate + depth), **feedback**, **mix** dry/wet, e un **riverbero "hall"** che viene
-alimentato **solo dalle ripetute del delay** (mai dal segnale diretto): ogni
-ripetuta genera quindi la propria coda di riverbero, con **decay** e **mix**
-dedicati.
+Audio plugin (VST3 + Audio Unit on macOS) for guitar: a **stereo delay** with
+independent left/right delay times, **time modulation** (rate + depth),
+**feedback**, **dry/wet mix**, and a **hall reverb** that is fed **only by the
+delay repeats** (never by the dry signal): every repeat gets its own reverb
+tail, with dedicated **decay** and **mix** controls.
 
-## Parametri
+## Parameters
 
-| Parametro  | Range        | Default | Note                                            |
-|------------|--------------|---------|-------------------------------------------------|
-| Mix        | 0–100 %      | 30 %    | dry/wet                                         |
-| Feedback   | 0–95 %       | 35 %    | ricircolo pre-riverbero (le code non si ricircolano) |
-| Time L     | 20–2000 ms   | 375 ms  | tempo di delay canale sinistro (scala log)     |
-| Time R     | 20–2000 ms   | 500 ms  | tempo di delay canale destro (indipendente)     |
-| Mod Rate   | 0.05–10 Hz   | 0.8 Hz  | velocità LFO (scala log)                        |
-| Mod Depth  | 0–30 ms      | 4 ms    | escursione del tempo di delay                   |
-| Rev Decay  | 0.2–10 s     | 3 s     | decadimento hall, mappato su RT60 (scala log)   |
-| Rev Mix    | 0–100 %      | 35 %    | quantità di riverbero sulle ripetute            |
+| Parameter  | Range      | Default | Notes                                              |
+|------------|------------|---------|----------------------------------------------------|
+| Mix        | 0–100 %    | 30 %    | dry/wet                                            |
+| Feedback   | 0–95 %     | 35 %    | pre-reverb feedback (reverb tails don't recirculate) |
+| Time L     | 20–2000 ms | 375 ms  | left-channel delay time (log scale)                |
+| Time R     | 20–2000 ms | 500 ms  | right-channel delay time (independent)             |
+| Mod Rate   | 0.05–10 Hz | 0.8 Hz  | LFO speed (log scale)                              |
+| Mod Depth  | 0–30 ms    | 4 ms    | delay-time deviation                               |
+| Rev Decay  | 0.2–10 s   | 3 s     | hall decay, mapped to RT60 (log scale)             |
+| Rev Mix    | 0–100 %    | 35 %    | reverb amount on the repeats                       |
 
-L'LFO dei due canali è in controfase (sfasamento di mezzo periodo) per un effetto
-stereo più ampio. La lettura della linea di delay usa interpolazione cubica.
+The two channels' LFOs are in anti-phase (half-period offset) for a wider
+stereo image. The delay line is read with cubic interpolation.
 
-## Architettura
+## Architecture
 
 ```
-Source/DSP/DelayHallEngine.{h,cpp}   nucleo DSP in C++ puro, senza dipendenze JUCE
-Source/PluginProcessor.{h,cpp}       AudioProcessor + parametri (APVTS) + state
-Source/PluginEditor.{h,cpp}          GUI: 8 knob rotativi
-tests/dsp_test.cpp                   test unit del DSP, eseguibili ovunque
-CMakeLists.txt                       progetto CMake (JUCE via FetchContent)
+Source/DSP/DelayHallEngine.{h,cpp}   DSP core in plain C++, no JUCE dependency
+Source/PluginProcessor.{h,cpp}       AudioProcessor + parameters (APVTS) + state
+Source/PluginEditor.{h,cpp}          GUI: 8 rotary knobs
+tests/dsp_test.cpp                   DSP unit tests, runnable anywhere
+CMakeLists.txt                       CMake project (JUCE via FetchContent)
 ```
 
-Il flusso del segnale (per campione, per canale):
+Signal flow (per sample, per channel):
 
 ```
 input ──┬──────────────────────────────► dry ─┐
         │                                      ├─► out = (1-mix)*dry + mix*wet
-        └─► [linea di delay + feedback] ─► d ─┴─► wet = d + revMix * hall(d)
+        └─► [delay line + feedback] ─► d ─────┴─► wet = d + revMix * hall(d)
                                     │
-                                    └─► riverbero hall (solo ripetute)
+                                    └─► hall reverb (repeats only)
 ```
 
-## Build su Mac (produce VST3 + AU + Standalone)
+## Building on Mac (produces VST3 + AU + Standalone)
 
-Prerequisiti: **Xcode** (con Command Line Tools) e **CMake** (`brew install cmake`).
+Prerequisites: **Xcode** (with Command Line Tools) and **CMake** (`brew install cmake`).
 
 ```sh
-cd StereoDelayHall
+cd StereoDelayHall   # or the root of this repository
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-Gli artefatti finiscono in `build/StereoDelayHall_artefacts/Release/`:
+Artifacts land in `build/StereoDelayHall_artefacts/Release/`:
 
-- `StereoDelayHall.vst3` → copialo in `~/Library/Audio/Plug-Ins/VST3/`
-- `StereoDelayHall.component` → copialo in `~/Library/Audio/Plug-Ins/Components/`
-- `StereoDelayHall.app` → app standalone per testarlo subito (senza DAW)
+- `StereoDelayHall.vst3` → copy to `~/Library/Audio/Plug-Ins/VST3/`
+- `StereoDelayHall.component` → copy to `~/Library/Audio/Plug-Ins/Components/`
+- `StereoDelayHall.app` → standalone app to try it immediately (no DAW needed)
 
-Per cambiare versione di JUCE: `cmake -B build -DJUCE_GIT_TAG=8.0.4` (è fissata la
-tag `8.0.4` in `CMakeLists.txt`).
+To use a different JUCE version: `cmake -B build -DJUCE_GIT_TAG=8.0.4`
+(the tag `8.0.4` is pinned in `CMakeLists.txt`).
 
-Per la **distribuzione** di un AU/VST3 su Mac, Apple richiede firma e
-notarizzazione (vd. documentazione JUCE "AU validation / packaging"); per uso
-personale locale non serve.
+Distributing an AU/VST3 on macOS requires signing and notarization
+(see JUCE's AU packaging docs); for local personal use it is not needed.
 
-## Test del nucleo DSP (senza JUCE, qualsiasi piattaforma)
+## Running the DSP tests (no JUCE required, any platform)
 
 ```sh
 g++ -std=c++17 -O2 -I Source tests/dsp_test.cpp Source/DSP/DelayHallEngine.cpp -o dsp_test
 ./dsp_test
 ```
 
-oppure via CMake: `cmake --build build --target dsp_test && ./build/dsp_test`
+or via CMake: `cmake --build build --target dsp_test && ./build/dsp_test`
 
-I test verificano: passthrough dry esatto a mix=0 (il riverbero non riceve mai il
-dry), posizione delle ripetute L/R indipendenti, ampiezza delle ripetute con
-feedback, coda di riverbero presente solo dopo le ripetute, spostamento della
-ripetuta con la modulazione, assenza di crossfeed tra i canali, stabilità a
-impostazioni estreme (niente NaN), funzionamento a 48 kHz.
+The tests verify: exact dry passthrough at mix=0 (the reverb never receives the
+dry signal), independent L/R repeat positions, repeat amplitudes with
+feedback, reverb tail present only after the repeats, repeat shift under
+modulation, no L/R crossfeed, stability at extreme settings (no NaN),
+operation at 48 kHz.
 
-## Licenza
+## License
 
-Il codice di questo progetto è tuo, ma **JUCE è dual-licensed**: AGPLv3 oppure
-licenza commerciale JUCE (https://juce.com/get-juce/). Se distribuisci il plugin
-in forma chiusa/commerciale senza rispettare la AGPLv3, ti serve una licenza
-commerciale JUCE. Per uso personale o progetti open-source AGPLv3 non serve altro.
+The code in this repository is yours, but **JUCE is dual-licensed**: AGPLv3 or
+the commercial JUCE licence (https://juce.com/get-juce/). If you distribute the
+plugin closed-source/commercially without complying with the AGPLv3, you need a
+commercial JUCE licence. For personal use or AGPLv3 open-source projects, no
+further licence is needed.
