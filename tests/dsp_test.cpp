@@ -327,6 +327,26 @@ int main() {
         CHECK(a[1] < 0.001f, "log curve already heavy at low amount");
     }
 
+    // 13) mono-to-stereo behavior at engine level: same input on both channels,
+    //     independent L/R times -> L and R outputs carry repeats at different times
+    {
+        StereoDelayHallEngine e;
+        e.prepare(sr, 512);
+        EngineParams p;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+        p.timeLms = 300.0f; p.timeRms = 450.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+        e.setParams(p);
+        std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+        l[0] = 1.0f;
+        std::copy(l.begin(), l.end(), r.begin()); // mono input duplicated
+        e.process(l.data(), r.data(), 30000);
+        float pvL = 0.0f, pvR = 0.0f;
+        int pkL = peakIndex(l, (int) (0.300 * sr) - 20, (int) (0.300 * sr) + 20, &pvL);
+        int pkR = peakIndex(r, (int) (0.450 * sr) - 20, (int) (0.450 * sr) + 20, &pvR);
+        CHECK(std::abs(pkL - (int) (0.300 * sr)) <= 3 && pvL > 0.8f, "mono->stereo: left repeat at 300 ms");
+        CHECK(std::abs(pkR - (int) (0.450 * sr)) <= 3 && pvR > 0.8f, "mono->stereo: right repeat at 450 ms");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

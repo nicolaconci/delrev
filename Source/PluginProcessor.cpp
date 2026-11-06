@@ -89,18 +89,22 @@ void StereoDelayHallAudioProcessor::releaseResources() {
 }
 
 bool StereoDelayHallAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const {
-    const auto mainOut = layouts.getMainOutputChannelSet();
     const auto mainIn = layouts.getMainInputChannelSet();
-    if (mainOut != AudioChannelSet::stereo() && mainOut != AudioChannelSet::mono())
+    const auto mainOut = layouts.getMainOutputChannelSet();
+    // supports stereo->stereo, mono->stereo (insert on a mono track widens to
+    // stereo), stereo->mono (mixdown) and mono->mono
+    if (! (mainIn.isMono() || mainIn.isStereo()))
         return false;
-    return mainIn == mainOut;
+    return mainOut.isMono() || mainOut.isStereo();
 }
 
 void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer&) {
     ScopedNoDenormals noDenormals;
 
+    auto inBus = getBusBuffer(buffer, true, 0);
+    auto outBus = getBusBuffer(buffer, false, 0);
     const int numSamples = buffer.getNumSamples();
-    if (numSamples == 0 || buffer.getNumChannels() == 0)
+    if (numSamples == 0)
         return;
 
     dsp::EngineParams p;
@@ -125,19 +129,43 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     }
     engine.setParams(p);
 
-    float* left = buffer.getWritePointer(0);
-    if (buffer.getNumChannels() >= 2) {
-        float* right = buffer.getWritePointer(1);
-        engine.process(left, right, numSamples);
-    } else {
-        if (monoScratch.getNumSamples() < numSamples)
-            monoScratch.setSize(2, numSamples, false, false, true);
-        float* tmpL = monoScratch.getWritePointer(0);
-        float* tmpR = monoScratch.getWritePointer(1);
-        std::copy(left, left + numSamples, tmpL);
-        std::copy(left, left + numSamples, tmpR);
+    const int inCh = inBus.getNumChannels();
+    const int outCh = outBus.getNumChannels();
+
+    if (inCh >= 2 && outCh >= 2) {
+        // stereo -> stereo, in place
+        engine.process(outBus.getWritePointer(0), outBus.getWritePointer(1), numSamples);
+        return;
+    }
+
+    if (monoScratch.getNumSamples() < numSamples)
+        monoScratch.setSize(2, numSamples, false, false, true);
+    float* tmpL = monoScratch.getWritePointer(0);
+    float* tmpR = monoScratch.getWritePointer(1);
+
+    if (inCh == 1 && outCh >= 2) {
+        // mono -> stereo: duplicate the input on both engine channels
+        const float* in = inBus.getReadPointer(0);
+        std::copy(in, in + numSamples, tmpL);
+        std::copy(in, in + numSamples, tmpR);
         engine.process(tmpL, tmpR, numSamples);
-        std::copy(tmpL, tmpL + numSamples, left);
+        std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
+        std::copy(tmpR, tmpR + numSamples, outBus.getWritePointer(1));
+    } else if (inCh >= 2 && outCh == 1) {
+        // stereo -> mono: mix down
+        std::copy(inBus.getReadPointer(0), inBus.getReadPointer(0) + numSamples, tmpL);
+        std::copy(inBus.getReadPointer(1), inBus.getReadPointer(1) + numSamples, tmpR);
+        engine.process(tmpL, tmpR, numSamples);
+        float* out = outBus.getWritePointer(0);
+        for (int i = 0; i < numSamples; ++i)
+            out[i] = 0.5f * (tmpL[i] + tmpR[i]);
+    } else {
+        // mono -> mono
+        const float* in = inBus.getReadPointer(0);
+        std::copy(in, in + numSamples, tmpL);
+        std::copy(in, in + numSamples, tmpR);
+        engine.process(tmpL, tmpR, numSamples);
+        std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
     }
 }
 

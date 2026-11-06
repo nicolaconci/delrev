@@ -22,8 +22,12 @@ MASTER`, row 2: `SMEAR | MOD | REV | WET`.
 | RIGHT   | Feedback R      | 0–95 %      | 35 %    | right feedback (independent)                                     |
 | RIGHT   | Mix R           | 0–100 %     | 30 %    | right dry/wet (independent)                                      |
 | MASTER  | Master          | -48..+12 dB | 0 dB    | output volume                                                    |
-| SMEAR   | Smear           | 0–100 %     | 0 %     | lowpass in the feedback loop: reduces the attack of the repeats (1st repeat untouched) |
-| SMEAR   | Curve (combo)   | Linear / Log / Exp | Linear | shape of the smear → filter mapping (Exp acts immediately and strongly) |
+| SMEAR   | Smear           | 0–100 %     | 0 %     | amount of smear: softens the attack of every repeat               |
+| SMEAR   | Dur             | 1–500 ms    | 100 ms  | smear duration = attack-ramp length of each repeat at Smear 100%  |
+| SMEAR   | Curve (combo)   | Linear / Log / Exp | Linear | shape of amount → duration (Log acts early, Exp only near max)    |
+
+Smear is a one-pole lowpass on the wet (read) side of the delay: every repeat —
+including the first — gets its attack spread over the smear duration.
 | MOD     | Rate            | 0.05–10 Hz  | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                            |
 | MOD     | Depth           | 0–30 ms     | 4 ms    | delay-time deviation                                             |
 | REV     | Decay           | 0.2–10 s    | 3 s     | hall decay, RT60-mapped (log scale)                              |
