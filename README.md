@@ -40,6 +40,16 @@ MOD purple, REV teal.
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
 stereo image. The delay line is read with cubic interpolation.
 
+## Bus layouts
+
+The plugin works on stereo tracks and on mono tracks in insert:
+
+- **stereo → stereo** (normal case)
+- **mono → stereo**: on a mono-track insert the same input feeds both delay
+  channels, and the independent L/R times widen it to stereo
+- **stereo → mono**: mixdown (L+R)/2
+- **mono → mono**
+
 ## Architecture
 
 ```

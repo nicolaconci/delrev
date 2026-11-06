@@ -92,10 +92,8 @@ bool StereoDelayHallAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
     const auto mainIn = layouts.getMainInputChannelSet();
     const auto mainOut = layouts.getMainOutputChannelSet();
     // supports stereo->stereo, mono->stereo (insert on a mono track widens to
-    // stereo), stereo->mono (mixdown) and mono->mono
-    if (! (mainIn.isMono() || mainIn.isStereo()))
-        return false;
-    return mainOut.isMono() || mainOut.isStereo();
+    // stereo), stereo->mono (mixdown), mono->mono; size()<=2 also covers disabled buses
+    return mainIn.size() <= 2 && mainOut.size() <= 2;
 }
 
 void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, MidiBuffer&) {
@@ -160,12 +158,18 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
         for (int i = 0; i < numSamples; ++i)
             out[i] = 0.5f * (tmpL[i] + tmpR[i]);
     } else {
-        // mono -> mono
-        const float* in = inBus.getReadPointer(0);
-        std::copy(in, in + numSamples, tmpL);
-        std::copy(in, in + numSamples, tmpR);
+        // mono -> mono, or silent (disabled) input bus
+        if (inCh >= 1) {
+            const float* in = inBus.getReadPointer(0);
+            std::copy(in, in + numSamples, tmpL);
+            std::copy(in, in + numSamples, tmpR);
+        } else {
+            std::fill(tmpL, tmpL + numSamples, 0.0f);
+            std::fill(tmpR, tmpR + numSamples, 0.0f);
+        }
         engine.process(tmpL, tmpR, numSamples);
-        std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
+        if (outCh >= 1)
+            std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
     }
 }
 
