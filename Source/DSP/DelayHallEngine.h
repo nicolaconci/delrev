@@ -12,7 +12,7 @@ struct EngineParams {
     float mixR = 0.30f;       // 0..1 dry/wet, right channel
     float feedbackL = 0.35f;  // 0..0.95 recirculation gain, left channel
     float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
-    float attackMs = 0.0f;    // 0..maxAttackMs: fade-in on the first repeat, propagated by the feedback loop
+    float attackMs = 0.0f;    // 0..maxAttackMs: fade-in per repeat (amplitude envelope on the wet signal)
     int attackCurve = 0;      // 0 = linear, 1 = log, 2 = exp shape of the fade-in
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
@@ -114,12 +114,8 @@ private:
     float preGain = 1.0f, master = 1.0f; // smoothed linear gains
     float targetPreGain = 1.0f, targetMaster = 1.0f;
     float mixL = 0.0f, mixR = 0.0f, feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
-    // attack fade-in state (applied to the wet output only, never fed back)
-    std::vector<float> histL, histR; // circular history for the box average
-    int histPos = 0;
-    double sumL = 0.0, sumR = 0.0;
-    int lastBoxW = -1;
-    float lpL = 0.0f, lpR = 0.0f; // one-pole state (exp/log attack curves)
+    // attack fade-in state: amplitude envelope follower on the wet signal (per channel)
+    float envL = 0.0f, envR = 0.0f;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

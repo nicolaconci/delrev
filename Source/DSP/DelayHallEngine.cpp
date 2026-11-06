@@ -13,12 +13,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
-    const int maxAttackSamples = (int) std::ceil(maxAttackMs * 0.001 * sr) + 2;
-    histL.assign((size_t) maxAttackSamples, 0.0f);
-    histR.assign((size_t) maxAttackSamples, 0.0f);
-    histPos = 0;
-    sumL = sumR = 0.0;
-    lastBoxW = -1;
+    envL = envR = 0.0f;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -31,8 +26,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     feedbackL = def.feedbackL;
     feedbackR = def.feedbackR;
     attack = def.attackMs;
-    lpL = 0.0f;
-    lpR = 0.0f;
+    envL = 0.0f;
+    envR = 0.0f;
     timeL = def.timeLms;
     timeR = def.timeRms;
     modRate = def.modRateHz;
@@ -117,67 +112,42 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        // attack: fade-in applied to the input entering the delay line, so the
-        // first repeat starts soft over ~attackMs and the fade-in propagates to
-        // the later repeats through the raw feedback (the recirculated signal is
-        // not filtered again -> no compounding); curve selects the ramp shape
-        float aL = inL, aR = inR;
-        const int A = (int) std::lround(attack * sr * 0.001f);
-        if (A > 1) {
-            const int M = (int) histL.size();
-            const int boxW = (target.attackCurve == 1) ? std::max(1, A / 2) : A;
-            if (boxW != lastBoxW) {
-                sumL = sumR = 0.0;
-                for (int n = 0; n < boxW; ++n) {
-                    sumL += histL[(size_t) ((histPos - n + M) % M)];
-                    sumR += histR[(size_t) ((histPos - n + M) % M)];
-                }
-                lastBoxW = boxW;
-            }
-            const int outIdx = (histPos - boxW + M) % M;
-            sumL += inL - histL[(size_t) outIdx];
-            sumR += inR - histR[(size_t) outIdx];
-            histL[(size_t) histPos] = inL;
-            histR[(size_t) histPos] = inR;
-            histPos = (histPos + 1) % M;
-
-            switch (target.attackCurve) {
-                case 2: { // exp: one-pole lowpass, tau = A (slow start, long tail)
-                    const float alpha = 1.0f - std::exp(-1.0f / (float) A);
-                    lpL += alpha * (inL - lpL);
-                    lpR += alpha * (inR - lpR);
-                    aL = lpL;
-                    aR = lpR;
-                    break;
-                }
-                case 1: { // log: box(A/2) then one-pole LP tau = A/4 (fast start)
-                    const float bl = (float) (sumL / boxW);
-                    const float br = (float) (sumR / boxW);
-                    const float alpha = 1.0f - std::exp(-4.0f / (float) A);
-                    lpL += alpha * (bl - lpL);
-                    lpR += alpha * (br - lpR);
-                    aL = lpL;
-                    aR = lpR;
-                    break;
-                }
-                default: { // linear: box moving average over A
-                    aL = (float) (sumL / boxW);
-                    aR = (float) (sumR / boxW);
-                    break;
-                }
-            }
-        }
-
-        lineL.write(aL + feedbackL * dL);
+        // recirculating feedback, raw: analog-style smooth tail
+        lineL.write(inL + feedbackL * dL);
         lineL.advance();
-        lineR.write(aR + feedbackR * dR);
+        lineR.write(inR + feedbackR * dR);
         lineR.advance();
 
-        float rvL = 0.0f, rvR = 0.0f;
-        reverb.process(dL, dR, rvL, rvR);
+        // attack: amplitude fade-in per repeat on the wet signal (envelope
+        // follower, NOT a lowpass -> the body of the repeat is preserved).
+        // The envelope releases between repeats, so each repeat fades in
+        // independently; curve shapes the ramp (log = fast start, exp = slow)
+        float wL = dL, wR = dR;
+        const int A = (int) std::lround(attack * sr * 0.001f);
+        if (A > 0) {
+            const float alphaR = 1.0f - std::exp(-1.0f / (0.010f * sr)); // ~10 ms release
+            const float peakL = std::fabs(dL);
+            const float peakR = std::fabs(dR);
+            if (peakL > envL) envL += peakL / (float) A;           // linear rise, full after A samples
+            else              envL += (peakL - envL) * alphaR;    // release
+            if (peakR > envR) envR += peakR / (float) A;
+            else              envR += (peakR - envR) * alphaR;
+            float gL = std::clamp(envL / std::max(peakL, 1e-4f), 0.0f, 1.0f);
+            float gR = std::clamp(envR / std::max(peakR, 1e-4f), 0.0f, 1.0f);
+            switch (target.attackCurve) {
+                case 1: gL = std::pow(gL, 0.5f); gR = std::pow(gR, 0.5f); break; // log
+                case 2: gL = std::pow(gL, 2.0f); gR = std::pow(gR, 2.0f); break; // exp
+                default: break;                                                 // linear
+            }
+            wL = dL * gL;
+            wR = dR * gR;
+        }
 
-        const float wetL = dL + revMix * rvL;
-        const float wetR = dR + revMix * rvR;
+        float rvL = 0.0f, rvR = 0.0f;
+        reverb.process(wL, wR, rvL, rvR);
+
+        const float wetL = wL + revMix * rvL;
+        const float wetR = wR + revMix * rvR;
 
         left[i] = ((1.0f - mixL) * inL + mixL * wetL) * master;
         right[i] = ((1.0f - mixR) * inR + mixR * wetR) * master;
@@ -196,13 +166,8 @@ void StereoDelayHallEngine::reset() {
     feedbackL = target.feedbackL;
     feedbackR = target.feedbackR;
     attack = target.attackMs;
-    std::fill(histL.begin(), histL.end(), 0.0f);
-    std::fill(histR.begin(), histR.end(), 0.0f);
-    histPos = 0;
-    sumL = sumR = 0.0;
-    lastBoxW = -1;
-    lpL = 0.0f;
-    lpR = 0.0f;
+    envL = 0.0f;
+    envR = 0.0f;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;

@@ -263,7 +263,7 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
-    // 11) attack: fade-in on every repeat incl. the first; feedback stays raw (no filtering in the loop)
+    // 11) attack: amplitude fade-in per repeat (envelope follower on wet, NOT a lowpass)
     {
         auto run = [&](float attackMs) {
             StereoDelayHallEngine e;
@@ -273,32 +273,25 @@ int main() {
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
             p.attackMs = attackMs; p.attackCurve = 0;
             e.setParams(p);
-            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
-            l[0] = 1.0f;
+            std::vector<float> l(20000, 1.0f), r(20000, 1.0f); // step input
             e.process(l.data(), r.data(), 20000);
             return l;
         };
         const int t = (int) (0.100 * sr);
-        const int A = (int) (0.050 * sr); // attack = 50 ms (max range)
-        float pv = 0.0f;
+        const int A = (int) (0.050 * sr); // attack = 50 ms
         auto noAtk = run(0.0f);
-        peakIndex(noAtk, t - 20, t + 20, &pv);
-        const float ref = pv; // ~1.0
-        auto atk10 = run(10.0f);
-        peakIndex(atk10, t - 20, t + 20, &pv);
-        const float peakNear = pv;
-        auto atk50 = run(50.0f);
-        peakIndex(atk50, t - 20, t + 20, &pv);
-        const float peakLong = pv;
-        const double energy = rms(atk50, t + 10, t + A);
-        const double energy2nd = rms(atk50, 2 * t + 10, 2 * t + A);
-        std::printf("  attack: none peak %.3f; @10ms peak %.5f; @50ms peak %.5f rms %.5f (2nd rms %.5f)\n",
-                    (double) ref, (double) peakNear, (double) peakLong, energy, energy2nd);
-        CHECK(ref > 0.8f, "attack=0: 1st repeat peak ~1.0");
-        CHECK(peakLong < 0.2f * ref, "attack softens the 1st repeat onset");
-        CHECK(energy > 1e-5, "attack spreads the repeat over its duration");
-        CHECK(energy2nd > 1e-5, "fade-in propagates: 2nd repeat still present");
-        CHECK(peakLong < peakNear, "longer attack -> softer onset");
+        auto atk = run(50.0f);
+        const float v0 = atk[(size_t) t];
+        const float vMid = atk[(size_t) (t + A / 2)];
+        const float vFull = atk[(size_t) (t + A)];
+        const float v2 = atk[(size_t) (2 * t + A)];
+        std::printf("  attack step: noAtk@T=%.3f; @50ms onset %.4f mid %.3f full %.3f | 2nd echo @2T+A %.3f\n",
+                    (double) noAtk[(size_t) t], (double) v0, (double) vMid, (double) vFull, (double) v2);
+        CHECK(noAtk[(size_t) t] > 0.9f, "attack=0: repeat at full level immediately");
+        CHECK(v0 < 0.3f, "attack: repeat onset starts near zero");
+        CHECK(vMid > 0.3f && vMid < 0.7f, "attack: half-way ramp ~0.5");
+        CHECK(vFull > 0.8f, "attack: full level after the ramp (body preserved, no lowpass)");
+        CHECK(v2 > 1.0f, "later repeats not annihilated (raw feedback)");
     }
 
     // 12) attack curve shapes the fade-in ramp (step input): log fast, linear mid, exp slow
@@ -327,10 +320,10 @@ int main() {
                     (double) mid[0], (double) mid[1], (double) mid[2],
                     (double) full[0], (double) full[1], (double) full[2]);
         CHECK(mid[0] > 0.4f && mid[0] < 0.6f, "linear ramp ~0.5 at half attack");
+        CHECK(mid[1] > 0.6f && mid[1] < 0.8f, "log ramp faster (~0.71)");
+        CHECK(mid[2] > 0.15f && mid[2] < 0.35f, "exp ramp slower (~0.25)");
         CHECK(mid[1] > mid[0] && mid[0] > mid[2], "at half attack: log > linear > exp");
-        CHECK(full[0] > 0.95f, "linear reaches full level at attack end");
-        CHECK(full[2] > 0.55f && full[2] < 0.7f, "exp reaches ~0.63 at attack end");
-        CHECK(full[1] > 0.9f, "log reaches ~full at attack end");
+        CHECK(full[0] > 0.9f && full[1] > 0.9f && full[2] > 0.9f, "all curves reach full level at attack end");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,
