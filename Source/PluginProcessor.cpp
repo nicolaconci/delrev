@@ -22,7 +22,8 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
         layout.add(std::make_unique<AudioParameterFloat>(ParameterID{id, 1}, name, range, def, attrs));
     };
 
-    addFloat("mix", "Mix", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
+    addFloat("mixL", "Mix L", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
+    addFloat("mixR", "Mix R", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
     addFloat("feedback", "Feedback", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
 
     NormalisableRange<float> timeRange(20.0f, 2000.0f, 0.1f);
@@ -48,7 +49,8 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
                          .withInput("Input", AudioChannelSet::stereo(), true)
                          .withOutput("Output", AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "PARAMETERS", createParameterLayout()) {
-    mixParam = apvts.getRawParameterValue("mix");
+    mixLParam = apvts.getRawParameterValue("mixL");
+    mixRParam = apvts.getRawParameterValue("mixR");
     feedbackParam = apvts.getRawParameterValue("feedback");
     timeLParam = apvts.getRawParameterValue("timeL");
     timeRParam = apvts.getRawParameterValue("timeR");
@@ -86,7 +88,8 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
         return;
 
     dsp::EngineParams p;
-    p.mix = mixParam->load() / 100.0f;
+    p.mixL = mixLParam->load() / 100.0f;
+    p.mixR = mixRParam->load() / 100.0f;
     p.feedback = feedbackParam->load() / 100.0f;
     p.timeLms = timeLParam->load();
     p.timeRms = timeRParam->load();

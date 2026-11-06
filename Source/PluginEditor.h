@@ -15,9 +15,10 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
 
     juce::Label titleLabel;
-    juce::Slider sliders[8];
-    juce::Label labels[8];
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[8];
+    static constexpr int numControls = 9;
+    juce::Slider sliders[numControls];
+    juce::Label labels[numControls];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numControls];
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessorEditor)
 };

@@ -14,7 +14,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     reverb.prepare(sr);
     EngineParams def;
     target = def;
-    mix = def.mix;
+    mixL = def.mixL;
+    mixR = def.mixR;
     feedback = def.feedback;
     timeL = def.timeLms;
     timeR = def.timeRms;
@@ -28,7 +29,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
 
 void StereoDelayHallEngine::setParams(const EngineParams& p) {
     EngineParams c = p;
-    c.mix = std::clamp(c.mix, 0.0f, 1.0f);
+    c.mixL = std::clamp(c.mixL, 0.0f, 1.0f);
+    c.mixR = std::clamp(c.mixR, 0.0f, 1.0f);
     c.feedback = std::clamp(c.feedback, 0.0f, 0.95f);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
@@ -38,7 +40,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.revMix = std::clamp(c.revMix, 0.0f, 1.0f);
     target = c;
     if (!paramsSnapped) {
-        mix = c.mix;
+        mixL = c.mixL;
+        mixR = c.mixR;
         feedback = c.feedback;
         timeL = c.timeLms;
         timeR = c.timeRms;
@@ -57,7 +60,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
     reverb.setDecay((double) target.revDecaySec, sampleRate);
 
     for (int i = 0; i < numSamples; ++i) {
-        mix += (target.mix - mix) * smoothCoef;
+        mixL += (target.mixL - mixL) * smoothCoef;
+        mixR += (target.mixR - mixR) * smoothCoef;
         feedback += (target.feedback - feedback) * smoothCoef;
         timeL += (target.timeLms - timeL) * smoothCoef;
         timeR += (target.timeRms - timeR) * smoothCoef;
@@ -93,8 +97,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float wetL = dL + revMix * rvL;
         const float wetR = dR + revMix * rvR;
 
-        left[i] = (1.0f - mix) * inL + mix * wetL;
-        right[i] = (1.0f - mix) * inR + mix * wetR;
+        left[i] = (1.0f - mixL) * inL + mixL * wetL;
+        right[i] = (1.0f - mixR) * inR + mixR * wetR;
     }
 }
 
@@ -103,7 +107,8 @@ void StereoDelayHallEngine::reset() {
     lineR.clear();
     reverb.clear();
     lfoPhase = 0.0f;
-    mix = target.mix;
+    mixL = target.mixL;
+    mixR = target.mixR;
     feedback = target.feedback;
     timeL = target.timeLms;
     timeR = target.timeRms;

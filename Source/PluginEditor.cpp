@@ -10,10 +10,10 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
 
-    const char* ids[8] = {"mix", "feedback", "timeL", "timeR", "modRate", "modDepth", "revDecay", "revMix"};
-    const char* names[8] = {"Mix", "Feedback", "Time L", "Time R", "Mod Rate", "Mod Depth", "Rev Decay", "Rev Mix"};
+    const char* ids[numControls] = {"mixL", "mixR", "feedback", "timeL", "timeR", "modRate", "modDepth", "revDecay", "revMix"};
+    const char* names[numControls] = {"Mix L", "Mix R", "Feedback", "Time L", "Time R", "Mod Rate", "Mod Depth", "Rev Decay", "Rev Mix"};
 
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < numControls; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
         sliders[i].setTextBoxStyle(Slider::TextBoxBelow, false, 80, 18);
         sliders[i].setColour(Slider::rotarySliderFillColourId, Colours::orange);
@@ -29,7 +29,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, ids[i], sliders[i]);
     }
 
-    setSize(680, 330);
+    setSize(660, 440);
 }
 
 StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() = default;
@@ -42,12 +42,12 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(8);
     titleLabel.setBounds(area.removeFromTop(28));
 
-    const int cols = 4;
-    const int rows = 2;
+    const int cols = 3;
+    const int rows = 3;
     const int cellW = area.getWidth() / cols;
     const int cellH = area.getHeight() / rows;
 
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < numControls; ++i) {
         const int col = i % cols;
         const int row = i / cols;
         auto cell = Rectangle<int>(area.getX() + col * cellW, area.getY() + row * cellH, cellW, cellH);

@@ -6,7 +6,8 @@
 namespace dsp {
 
 struct EngineParams {
-    float mix = 0.30f;        // 0..1 dry/wet
+    float mixL = 0.30f;       // 0..1 dry/wet, left channel
+    float mixR = 0.30f;       // 0..1 dry/wet, right channel
     float feedback = 0.35f;   // 0..0.95
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
@@ -104,7 +105,7 @@ private:
 
     double sampleRate = 44100.0;
     EngineParams target {};
-    float mix = 0.0f, feedback = 0.0f, timeL = 0.0f, timeR = 0.0f;
+    float mixL = 0.0f, mixR = 0.0f, feedback = 0.0f, timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;
     bool paramsSnapped = false;

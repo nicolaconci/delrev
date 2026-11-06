@@ -39,7 +39,8 @@ private:
     dsp::StereoDelayHallEngine engine;
     juce::AudioBuffer<float> monoScratch;
 
-    std::atomic<float>* mixParam = nullptr;
+    std::atomic<float>* mixLParam = nullptr;
+    std::atomic<float>* mixRParam = nullptr;
     std::atomic<float>* feedbackParam = nullptr;
     std::atomic<float>* timeLParam = nullptr;
     std::atomic<float>* timeRParam = nullptr;

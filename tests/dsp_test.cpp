@@ -48,7 +48,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mix = 0.0f; p.feedback = 0.9f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
+        p.mixL = 0.0f; p.mixR = 0.0f; p.feedback = 0.9f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
         p.timeLms = 100.0f; p.timeRms = 200.0f;
         e.setParams(p);
         std::vector<float> l(8192), r(8192);
@@ -58,7 +58,7 @@ int main() {
         double maxd = 0.0;
         for (int i = 0; i < 8192; ++i)
             maxd = std::max(maxd, std::max((double) std::fabs(l[(size_t) i] - l0[(size_t) i]), (double) std::fabs(r[(size_t) i] - r0[(size_t) i])));
-        CHECK(maxd < 1e-6, "mix=0: dry passthrough exact (reverb not fed by dry)");
+        CHECK(maxd < 1e-6, "mixL=mixR=0: dry passthrough exact (reverb not fed by dry)");
     }
 
     // 2) independent L/R repeat positions
@@ -66,7 +66,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mix = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
@@ -87,7 +87,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mix = 1.0f; p.feedback = 0.5f; p.timeLms = 100.0f; p.timeRms = 100.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.5f; p.timeLms = 100.0f; p.timeRms = 100.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
@@ -109,7 +109,7 @@ int main() {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mix = 1.0f; p.feedback = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
             p.modDepthMs = 0.0f; p.revMix = revMix; p.revDecaySec = 5.0f;
             e.setParams(p);
             std::vector<float> l(60000, 0.0f), r(60000, 0.0f);
@@ -131,7 +131,7 @@ int main() {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mix = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
             p.modRateHz = 1.0f; p.modDepthMs = depthMs; p.revMix = 0.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
@@ -157,7 +157,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mix = 1.0f; p.feedback = 0.95f; p.timeLms = 50.0f; p.timeRms = 37.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.95f; p.timeLms = 50.0f; p.timeRms = 37.0f;
         p.modRateHz = 10.0f; p.modDepthMs = 30.0f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
         e.setParams(p);
         std::vector<float> l(44100), r(44100);
@@ -185,7 +185,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(sr, 512);
         EngineParams p;
-        p.mix = 1.0f; p.feedback = 0.5f; p.timeLms = 100.0f; p.timeRms = 450.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.5f; p.timeLms = 100.0f; p.timeRms = 450.0f;
         p.revMix = 1.0f; p.revDecaySec = 5.0f; p.modDepthMs = 0.0f;
         e.setParams(p);
         std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
@@ -199,7 +199,7 @@ int main() {
         StereoDelayHallEngine e;
         e.prepare(48000.0, 512);
         EngineParams p;
-        p.mix = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 300.0f;
         p.modDepthMs = 0.0f; p.revMix = 0.0f;
         e.setParams(p);
         std::vector<float> l(32000, 0.0f), r(32000, 0.0f);
@@ -209,6 +209,31 @@ int main() {
         float pv = 0.0f;
         int pk = peakIndex(l, exp - 20, exp + 20, &pv);
         CHECK(std::abs(pk - exp) <= 3 && pv > 0.8f, "repeat at 300 ms @ 48 kHz");
+    }
+
+    // 9) independent L/R mix: mixL=1, mixR=0 -> left is fully wet, right is exact dry
+    {
+        StereoDelayHallEngine e;
+        e.prepare(sr, 512);
+        EngineParams p;
+        p.mixL = 1.0f; p.mixR = 0.0f; p.feedback = 0.0f; p.timeLms = 300.0f; p.timeRms = 450.0f;
+        p.modDepthMs = 0.0f; p.revMix = 0.0f;
+        e.setParams(p);
+        std::vector<float> l(30000), r(30000);
+        for (int i = 0; i < 30000; ++i) {
+            l[i] = (i % 61 == 0) ? 1.0f : 0.002f * (i % 7);
+            r[i] = -l[i];
+        }
+        auto r0 = r;
+        e.process(l.data(), r.data(), 30000);
+        double maxdR = 0.0;
+        for (int i = 0; i < 30000; ++i)
+            maxdR = std::max(maxdR, (double) std::fabs(r[(size_t) i] - r0[(size_t) i]));
+        const int expL = (int) (0.300 * sr);
+        float pv = 0.0f;
+        int pk = peakIndex(l, expL - 20, expL + 20, &pv);
+        CHECK(maxdR < 1e-6, "mixR=0: right channel is exact dry passthrough");
+        CHECK(std::abs(pk - expL) <= 3 && pv > 0.8f, "mixL=1: left channel carries the delay repeat");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
