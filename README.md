@@ -1,10 +1,11 @@
 # StereoDelayHall
 
-Audio plugin (VST3 + Audio Unit on macOS) for guitar: a **stereo delay** with
+Audio plugin (VST3 + Audio Unit on macOS): a **stereo delay** with
 independent left/right delay times, **time modulation** (rate + depth),
 **feedback**, **dry/wet mix**, and a **hall reverb** that is fed **only by the
 delay repeats** (never by the dry signal): every repeat gets its own reverb
-tail, with dedicated **decay** and **mix** controls.
+tail, with dedicated **decay** and **mix** controls. Works on any source —
+guitar, vocals, synths, full mixes.
 
 ## Parameters
 
