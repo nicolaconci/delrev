@@ -11,6 +11,7 @@ guitar, vocals, synths, full mixes.
 
 | Parameter  | Range      | Default | Notes                                              |
 |------------|------------|---------|----------------------------------------------------|
+| Pre Gain   | -24..+24 dB | 0 dB   | input gain, applied before dry/delay/feedback      |
 | Mix L      | 0–100 %    | 30 %    | dry/wet, left channel                              |
 | Mix R      | 0–100 %    | 30 %    | dry/wet, right channel (independent)               |
 | Feedback   | 0–95 %     | 35 %    | pre-reverb feedback (reverb tails don't recirculate) |
@@ -21,6 +22,7 @@ guitar, vocals, synths, full mixes.
 | Rev Decay  | 0.2–10 s   | 3 s     | hall decay, mapped to RT60 (log scale)             |
 | Rev Mix    | 0–100 %    | 35 %    | reverb amount on the repeats                       |
 | 100% Wet (button) | on/off | off | forces Mix L and Mix R to 100% — use it when the plugin sits on an aux bus/send (wet-only), without touching the Mix knobs |
+| Master     | -48..+12 dB | 0 dB   | output volume                                      |
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
 stereo image. The delay line is read with cubic interpolation.
@@ -38,11 +40,11 @@ CMakeLists.txt                       CMake project (JUCE via FetchContent)
 Signal flow (per sample, per channel):
 
 ```
-input ──┬──────────────────────────────► dry ─┐
-        │                                      ├─► outL = (1-mixL)*dryL + mixL*wetL
-        └─► [delay line + feedback] ─► d ─────┴─► outR = (1-mixR)*dryR + mixR*wetR
-                                    │               wet = d + revMix * hall(d)
-                                    └─► hall reverb (repeats only)
+input ─► [pre gain] ──┬──────────────────► dry ─┐
+                      │                         ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
+                      └─► [delay line + fb] ─► d ─┴─► outR = ((1-mixR)*dryR + mixR*wetR) * master
+                                       │               wet = d + revMix * hall(d)
+                                       └─► hall reverb (repeats only)
 ```
 
 ## Quick setup on macOS (one command)

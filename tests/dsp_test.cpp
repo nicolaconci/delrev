@@ -236,6 +236,33 @@ int main() {
         CHECK(std::abs(pk - expL) <= 3 && pv > 0.8f, "mixL=1: left channel carries the delay repeat");
     }
 
+    // 10) pre gain and master volume (dB)
+    {
+        auto run = [&](float preDb, float masterDb, float mixL, float mixR) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.preGainDb = preDb; p.masterDb = masterDb;
+            p.mixL = mixL; p.mixR = mixR; p.feedback = 0.0f; p.timeLms = 100.0f; p.timeRms = 100.0f;
+            p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        float pv = 0.0f;
+        auto wet = run(6.0206f, 0.0f, 1.0f, 1.0f);
+        peakIndex(wet, t - 20, t + 20, &pv);
+        CHECK(std::fabs(pv - 2.0f) < 0.1f, "preGain +6 dB doubles the repeat");
+        auto mastered = run(0.0f, -6.0206f, 1.0f, 1.0f);
+        peakIndex(mastered, t - 20, t + 20, &pv);
+        CHECK(std::fabs(pv - 0.5f) < 0.06f, "master -6 dB halves the output");
+        auto dry = run(6.0206f, 0.0f, 0.0f, 0.0f);
+        CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }
