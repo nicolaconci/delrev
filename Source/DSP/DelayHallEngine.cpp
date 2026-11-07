@@ -152,8 +152,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                     sinceOnset = 0;
                 }
                 if (tgt == 0.0f) {
-                    ramp -= 1.0f / (0.020f * sr); // smooth reset: 20 ms fade-out, floor 0.15 (never a hard cut)
-                    if (ramp <= 0.15f) { ramp = 0.15f; tgt = 1.0f; }
+                    ramp -= 1.0f / (0.020f * sr); // smooth reset: 20 ms fade-out down to 0 (no hard cut, no click)
+                    if (ramp <= 0.0f) { ramp = 0.0f; tgt = 1.0f; }
                 } else if (ramp < 1.0f) {
                     ramp += 1.0f / (float) S;     // linear swell-in over S
                 }
