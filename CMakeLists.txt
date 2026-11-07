@@ -67,15 +67,19 @@ target_compile_definitions(StereoDelayHall PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_HOST_CROSS_PLATFORM_UID=1
-    # advertise supported I/O: mono->mono, mono->stereo, stereo->stereo,
-    # so hosts that honor preferred layouts (e.g. on mono tracks) pick mono->stereo
-    "JucePlugin_PreferredChannelConfigurations={1,1},{1,2},{2,2}"
 )
 
-# silence warnings coming from the bundled Steinberg VST3 SDK headers
-target_compile_options(StereoDelayHall PRIVATE
-    $<$<CXX_COMPILER_ID:AppleClang,Clang>:-Wno-nontrivial-memcall>
-)
+# silence warnings coming from JUCE's own sources, the bundled VST3 SDK and
+# Harfbuzz when compiled into the plugin targets (shared code + per-format)
+foreach(_t IN ITEMS StereoDelayHall StereoDelayHall_VST3 StereoDelayHall_AU StereoDelayHall_Standalone)
+    if (TARGET ${_t})
+        target_compile_options(${_t} PRIVATE
+            $<$<CXX_COMPILER_ID:AppleClang,Clang>:-Wno-nontrivial-memcall
+                                               -Wno-unused-but-set-variable
+                                               -Wno-switch-enum
+                                               -Wno-macro-redefined>)
+    endif()
+endforeach()
 
 target_link_libraries(StereoDelayHall PRIVATE
     juce::juce_audio_utils
