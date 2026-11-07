@@ -139,7 +139,7 @@ public:
                                      .rotated (angle, centre.x, centre.y));
             // ombra della lineetta
             g.setColour (juce::Colour (0x66000000));
-            g.fillPath (pointer, juce::AffineTransform::translated (1.5f, 2.0f));
+            g.fillPath (pointer, juce::AffineTransform::translation (1.5f, 2.0f));
             g.setColour (juce::Colours::white);
             g.fillPath (pointer);
         }
@@ -181,7 +181,7 @@ public:
             g.setColour (juce::Colours::white.withAlpha (0.10f));
             g.fillRoundedRectangle (bounds, bounds.getHeight() * 0.28f);
         }
-        ignoreUnused (highlight, down);
+        juce::ignoreUnused (highlight, down);
     }
 
 private:
@@ -276,8 +276,8 @@ public:
                                                                       (float) frameHeight);
         g.drawImage (filmstrip.getClippedImage (
                         juce::Rectangle<int> (frame * frameWidth, 0, frameWidth, frameHeight)),
-                     dest.getX(), dest.getY(), dest.getWidth(), dest.getHeight(),
-                     0.0f, 0.0f, (float) frameWidth, (float) frameHeight);
+                     (int) dest.getX(), (int) dest.getY(), (int) dest.getWidth(), (int) dest.getHeight(),
+                     0, 0, frameWidth, frameHeight);
     }
 
 private:
