@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <cmath>
 
@@ -25,6 +26,10 @@ struct EngineParams {
     float revMix = 0.35f;     // reverb amount on the repeats only (0..1)
     float revWidth = 1.0f;    // reverb stereo width: 0 = mono tail, 1 = full, 2 = extra wide
     float wetGainDb = 0.0f;   // gain on the wet path only (useful on aux buses at 100% wet)
+    float grit = 0.0f;        // 0..1 soft-clip distortion on the repeats
+    float modVol = 1.0f;      // 0..1 modulator (LFO) volume
+    float pitchL = 0.0f;      // extra line L pitch shift, semitones -12..+12 (0 = bypass)
+    float pitchR = 0.0f;      // extra line R pitch shift, semitones
 };
 
 // Stereo delay with independent L/R times, time modulation, feedback, and a
@@ -51,6 +56,54 @@ private:
         inline void write(float x) { buf[(size_t) writePos] = x; }
         inline void advance() { if (++writePos >= (int) buf.size()) writePos = 0; }
         inline float readCubic(float offset) const;
+    };
+
+    // extra delay line with pitch shift (dual-tap crossfade, DAFX-style)
+    struct PitchLine {
+        std::vector<float> buf;
+        int writePos = 0;
+        float rp = 0.0f;      // read position (absolute, in buffer coords)
+        float window = 0.0f;  // crossfade window W
+        void prepare(double sr, int maxSamples) {
+            buf.assign((size_t) maxSamples + 8192, 0.0f);
+            window = std::min((float) maxSamples * 0.5f, 0.05f * (float) sr);
+            rp = -window;
+        }
+        void clear() { std::fill(buf.begin(), buf.end(), 0.0f); writePos = 0; rp = -window; }
+        inline float readAt(float pos) const {
+            const int size = (int) buf.size();
+            double p = std::fmod((double) pos, (double) size);
+            if (p < 0.0) p += (double) size;
+            const double fl = std::floor(p);
+            const int i0 = (int) fl;
+            const float frac = (float) (p - fl);
+            const int im1 = ((i0 - 1) % size + size) % size;
+            const int i0w = ((i0) % size + size) % size;
+            const int i1 = ((i0 + 1) % size + size) % size;
+            const int i2 = ((i0 + 2) % size + size) % size;
+            const float ym1 = buf[(size_t) im1], y0 = buf[(size_t) i0w];
+            const float y1 = buf[(size_t) i1], y2 = buf[(size_t) i2];
+            const float c0 = y0;
+            const float c1 = 0.5f * (y1 - ym1);
+            const float c2 = ym1 - 2.5f * y0 + 2.0f * y1 - 0.5f * y2;
+            const float c3 = 0.5f * (y2 - ym1) + 1.5f * (y0 - y1);
+            return ((c3 * frac + c2) * frac + c1) * frac + c0;
+        }
+        inline float process(float in, float ratio, float baseOffset) {
+            const int size = (int) buf.size();
+            rp += ratio;
+            const float minD = std::max(4.0f, baseOffset);
+            const float maxD = minD + window;
+            const float wp = (float) writePos;
+            while (wp - rp > maxD) rp += window;
+            while (wp - rp < minD) rp -= window;
+            float w = (wp - rp - minD) / window;
+            w = std::clamp(w, 0.0f, 1.0f);
+            const float out = w * readAt(rp) + (1.0f - w) * readAt(rp - window);
+            buf[(size_t) writePos] = in;
+            writePos = (writePos + 1) % size;
+            return out;
+        }
     };
 
     struct Comb {
@@ -132,6 +185,8 @@ private:
     float rampL = 1.0f, rampR = 1.0f;
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
+    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f;
+    PitchLine plL, plR;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;
     float smoothCoef = 0.0f;

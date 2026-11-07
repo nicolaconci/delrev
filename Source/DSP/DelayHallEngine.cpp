@@ -13,6 +13,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
+    plL.prepare(sr, maxSamples);
+    plR.prepare(sr, maxSamples);
     inLpL = inLpR = 0.0f;
     inPrevL = inPrevR = 0.0f;
     fastEnvL = fastEnvR = 0.0f;
@@ -45,6 +47,10 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     revDecaySec = def.revDecaySec;
     revMix = def.revMix;
     revWidth = def.revWidth;
+    grit = def.grit;
+    modVol = def.modVol;
+    pitchL = def.pitchL;
+    pitchR = def.pitchR;
     paramsSnapped = false;
     lfoPhase = 0.0f;
 }
@@ -69,6 +75,10 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.revMix = std::clamp(c.revMix, 0.0f, 1.0f);
     c.revWidth = std::clamp(c.revWidth, 0.0f, 2.0f);
     c.wetGainDb = std::clamp(c.wetGainDb, -12.0f, 12.0f);
+    c.grit = std::clamp(c.grit, 0.0f, 1.0f);
+    c.modVol = std::clamp(c.modVol, 0.0f, 1.0f);
+    c.pitchL = std::clamp(c.pitchL, -12.0f, 12.0f);
+    c.pitchR = std::clamp(c.pitchR, -12.0f, 12.0f);
     target = c;
     targetPreGain = dbToLinear(c.preGainDb);
     targetMaster = dbToLinear(c.masterDb);
@@ -92,6 +102,10 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         revDecaySec = c.revDecaySec;
         revMix = c.revMix;
         revWidth = c.revWidth;
+        grit = c.grit;
+        modVol = c.modVol;
+        pitchL = c.pitchL;
+        pitchR = c.pitchR;
         paramsSnapped = true;
     }
 }
@@ -120,6 +134,10 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         modDepth += (target.modDepthMs - modDepth) * smoothCoef;
         revMix += (target.revMix - revMix) * smoothCoef;
         revWidth += (target.revWidth - revWidth) * smoothCoef;
+        grit += (target.grit - grit) * smoothCoef;
+        modVol += (target.modVol - modVol) * smoothCoef;
+        pitchL += (target.pitchL - pitchL) * smoothCoef;
+        pitchR += (target.pitchR - pitchR) * smoothCoef;
 
         const float inL = left[i] * preGain;
         const float inR = right[i] * preGain;
@@ -129,7 +147,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         lfoPhase += modRate / sr;
         if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
 
-        const float depthSamples = modDepth * sr * 0.001f;
+        const float depthSamples = modDepth * sr * 0.001f * modVol;
         float offL = timeL * sr * 0.001f + lfoL * depthSamples;
         float offR = timeR * sr * 0.001f + lfoR * depthSamples;
         offL = std::clamp(offL, 4.0f, maxOffset);
@@ -210,7 +228,16 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         lineR.write(wInR * gR + feedbackR * dR);
         lineR.advance();
 
-        float wL = dL, wR = dR;
+        // extra pitch-shifted lines, same pipeline; bypassed at 0 semitones
+        const float ratioL = std::pow(2.0f, pitchL / 12.0f);
+        const float ratioR = std::pow(2.0f, pitchR / 12.0f);
+        float extraL = 0.0f, extraR = 0.0f;
+        if (std::fabs(pitchL) >= 1.0f)
+            extraL = 0.5f * plL.process(wInL * gL, ratioL, timeL * sr * 0.001f);
+        if (std::fabs(pitchR) >= 1.0f)
+            extraR = 0.5f * plR.process(wInR * gR, ratioR, timeR * sr * 0.001f);
+
+        float wL = dL + extraL, wR = dR + extraR;
 
         // tone: per-channel one-pole lowpass on the wet (bright vs dark delay);
         // at 100% the filter is bypassed (fully transparent)
@@ -225,6 +252,14 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             const float aR = 1.0f - std::exp(-6.2831853f * fcR / sr);
             toneLpR += aR * (wR - toneLpR);
             wR = toneLpR;
+        }
+
+        // grit: soft-clip (tanh) distortion on the repeats
+        if (grit > 0.001f) {
+            const float drive = 1.0f + grit * 12.0f;
+            const float norm = std::tanh(drive);
+            wL = std::tanh(wL * drive) / norm;
+            wR = std::tanh(wR * drive) / norm;
         }
 
         float rvL = 0.0f, rvR = 0.0f;
@@ -278,6 +313,12 @@ void StereoDelayHallEngine::reset() {
     revDecaySec = target.revDecaySec;
     revMix = target.revMix;
     revWidth = target.revWidth;
+    grit = target.grit;
+    modVol = target.modVol;
+    pitchL = target.pitchL;
+    pitchR = target.pitchR;
+    plL.clear();
+    plR.clear();
     paramsSnapped = true;
 }
 

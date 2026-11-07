@@ -544,6 +544,93 @@ int main() {
         CHECK(maxDiffWide > 1e-3, "width 200%: reverb tail is wide (L != R)");
     }
 
+    // 17) grit: soft-clip distortion on the repeats (hot input gets clamped)
+    {
+        auto run = [&](float grit) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.preGainDb = 12.0f; p.grit = grit;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        float pv = 0.0f;
+        auto clean = run(0.0f);
+        peakIndex(clean, t - 20, t + 20, &pv);
+        const float c = pv; // ~4 (preGain +12 dB)
+        auto gritty = run(1.0f);
+        peakIndex(gritty, t - 20, t + 20, &pv);
+        std::printf("  grit: echo peak clean %.2f gritty %.2f\n", (double) c, (double) pv);
+        CHECK(c > 3.5f, "grit=0: hot repeat passes (~4)");
+        CHECK(pv < 1.5f, "grit=1: repeat soft-clipped (~1)");
+    }
+
+    // 18) modVol: LFO depth scaled by mod volume (0 = no modulation)
+    {
+        auto run = [&](float modVol) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 300.0f; p.timeRms = 300.0f; p.modRateHz = 1.0f; p.modDepthMs = 20.0f;
+            p.modVol = modVol; p.revMix = 0.0f;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 30000);
+            return l;
+        };
+        const int expL = (int) (0.300 * sr);
+        auto full = run(1.0f);
+        auto off = run(0.0f);
+        float pv = 0.0f;
+        int pkFull = peakIndex(full, expL - 1000, expL + 1000, &pv);
+        int pkOff = peakIndex(off, expL - 30, expL + 30, &pv);
+        std::printf("  modVol: peak pos full %d, off %d (base %d)\n", pkFull, pkOff, expL);
+        CHECK(std::abs(pkFull - expL) > 300, "modVol=1: repeat moves with LFO");
+        CHECK(std::abs(pkOff - expL) <= 3, "modVol=0: no modulation");
+    }
+
+    // 19) pitch: extra line shifts up one octave at +12 semitones
+    {
+        auto run = [&](float pitchSt) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.pitchL = pitchSt;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 0; i < 30000; ++i)
+                l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            e.process(l.data(), r.data(), 30000);
+            return l;
+        };
+        auto countZC = [&](const std::vector<float>& v, int from, int to) {
+            int c = 0;
+            for (int i = from + 1; i <= to && i < (int) v.size(); ++i)
+                if ((v[(size_t) i] >= 0) != (v[(size_t) (i - 1)] >= 0)) ++c;
+            return c;
+        };
+        const int t = (int) (0.100 * sr);
+        auto base = run(0.0f);
+        auto up = run(12.0f);
+        // difference = only the extra pitch-shifted line (main echo identical in both runs)
+        std::vector<float> diff(30000, 0.0f);
+        for (int i = 0; i < 30000; ++i) diff[(size_t) i] = up[(size_t) i] - base[(size_t) i];
+        const int zc0 = countZC(base, t + 500, t + 20000);
+        const int zc12 = countZC(diff, t + 500, t + 20000);
+        std::printf("  pitch: zc main %d, zc extra(+12st) %d\n", zc0, zc12);
+        CHECK(zc12 > (int) (1.6 * zc0), "pitch +12 st: extra line ~doubles the frequency");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

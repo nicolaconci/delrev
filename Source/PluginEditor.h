@@ -18,7 +18,7 @@ private:
     juce::Label titleLabel;
     juce::Label taglineLabel;
 
-    static constexpr int numKnobs = 18;
+    static constexpr int numKnobs = 22;
     juce::Slider sliders[numKnobs];
     juce::Label labels[numKnobs];
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numKnobs];

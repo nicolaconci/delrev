@@ -52,6 +52,10 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("revWidth", "Width", {0.0f, 200.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
 
     addFloat("wetGain", "Wet Gain", {-12.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 0));
+    addFloat("grit", "Grit", {0.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("%", 0));
+    addFloat("modVol", "Mod Vol", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
+    addFloat("pitchL", "Pitch L", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
+    addFloat("pitchR", "Pitch R", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"swellInput", 1}, "Swell on Input", false));
 
@@ -121,6 +125,10 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     revWidthParam = apvts.getRawParameterValue("revWidth");
     wet100Param = apvts.getRawParameterValue("wet100");
     wetGainParam = apvts.getRawParameterValue("wetGain");
+    gritParam = apvts.getRawParameterValue("grit");
+    modVolParam = apvts.getRawParameterValue("modVol");
+    pitchLParam = apvts.getRawParameterValue("pitchL");
+    pitchRParam = apvts.getRawParameterValue("pitchR");
 }
 
 StereoDelayHallAudioProcessor::~StereoDelayHallAudioProcessor() = default;
@@ -172,6 +180,10 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.revMix = revMixParam->load() / 100.0f;
     p.revWidth = revWidthParam->load() / 100.0f;
     p.wetGainDb = wetGainParam->load();
+    p.grit = gritParam->load() / 100.0f;
+    p.modVol = modVolParam->load() / 100.0f;
+    p.pitchL = pitchLParam->load();
+    p.pitchR = pitchRParam->load();
     if (wet100Param->load() > 0.5f) {
         p.mixL = 1.0f;
         p.mixR = 1.0f;
