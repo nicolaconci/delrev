@@ -76,9 +76,9 @@ private:
         float fade = 1.0f;       // fade-in after a capture (masks the loop restart)
         void prepare(double sr, int lineMaxSamples) {
             line.resize(lineMaxSamples);
-            capLen = (int) std::ceil(0.150 * sr); // 150 ms capture/hold window
+            capLen = (int) std::ceil(0.200 * sr); // 200 ms capture/hold window (pad-like)
             ring.assign((size_t) capLen, 0.0f);
-            window = std::min(capLen * 0.5f, 0.030f * (float) sr); // 30 ms wrap crossfade
+            window = std::min(capLen * 0.5f, 0.050f * (float) sr); // 50 ms wrap crossfade (wide = smooth, no glitches)
             ringPos = 0;
             rp = 0.0f;
             fade = 1.0f;
@@ -114,7 +114,7 @@ private:
             float w = d / window;
             if (w > 1.0f) w = 1.0f;
             const float out = w * readAt(rp) + (1.0f - w) * readAt(rp - (float) capLen);
-            fade += (1.0f - fade) * 0.02f; // ~1 ms fade-in after each capture
+            fade += (1.0f - fade) * 0.004f; // ~5 ms fade-in after each capture (masks the loop restart)
             return out * fade;
         }
     };

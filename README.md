@@ -87,17 +87,18 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
 - **Grit** (0–100 %, box SMEAR): tanh soft-clip saturation on the repeats with a slow RMS
   make-up gain — the perceived volume stays constant and only saturation is added (hot
   peaks are clamped, never louder than without grit). The knob range is compressed on
-  purpose: 100 % gives the saturation that the raw amount reached at 70 % (compressed range).
+  purpose: 100 % gives the saturation that the raw amount reached at 80 % (compressed range; the RMS make-up keeps the loudness constant).
 - **Mod Vol** (0–100 %, default 100 %, small knob at the bottom of MOD): scales the LFO depth
 - **Three small knobs per channel at the bottom of LEFT/RIGHT** — extra "capture & hold"
   pitch line (ICE-style). Pitch chain per channel:
   `original signal → capture/hold → delay at ratio × Time L/R → dedicated hall reverb → Pitch Mix`
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
     transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**.
-    At each **transient** (onset detector, 60 ms refractory) the last 150 ms of the input
-    are captured and **held** (looped with a 30 ms crossfade at the wrap, fade-in at each
-    capture to mask the loop restart, smoothed echo offset so Time/Ratio changes glide
-    instead of clicking); the line is held while playing, with a 300 ms release
+    At each **transient** (onset detector, 60 ms refractory) the last 200 ms of the input
+    are captured and **held** (looped with a wide 50 ms crossfade at the wrap — wide windows
+    keep it glitch-free and pad-like — plus a ~5 ms fade-in at each capture to mask the loop
+    restart, and a smoothed echo offset so Time/Ratio changes glide instead of clicking);
+    the line is held while playing, with a 300 ms release
   - **Ratio L/R** (echo time = multiple of the channel's main delay time, **4 discrete
     steps: `1.5:1`, `2:1`, `3:1`, `4:1`**, double-click = `2:1`): e.g. Time 200 ms →
     300 / 400 / 600 / 800 ms

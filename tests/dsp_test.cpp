@@ -589,8 +589,10 @@ int main() {
         // constant volume: sustained sine, RMS of the repeat with grit ~ without grit
         auto s0 = runSine(0.0f);
         auto s1 = runSine(1.0f);
+        auto s08 = runSine(0.8f); // what the knob now reaches at 100%
         const double r0 = rms(s0, t + 2000, t + 8000);
         const double r1 = rms(s1, t + 2000, t + 8000);
+        const double r08 = rms(s08, t + 2000, t + 8000);
         float pk0 = 0.0f, pk1 = 0.0f;
         peakIndex(s0, t + 2000, t + 8000, &pk0);
         peakIndex(s1, t + 2000, t + 8000, &pk1);
@@ -599,6 +601,7 @@ int main() {
         std::printf("  grit: sine rms clean %.4f gritty %.4f (ratio %.3f), crest %.3f -> %.3f\n",
                     r0, r1, r0 > 1e-9 ? r1 / r0 : 0.0, crest0, crest1);
         CHECK(r1 > 0.8 * r0 && r1 < 1.25 * r0, "grit=1: repeat RMS ~constant (volume unchanged)");
+        CHECK(r08 > 0.8 * r0 && r08 < 1.25 * r0, "grit=0.8 (knob 100%): RMS still ~constant (loudness compensation holds)");
         CHECK(crest1 < crest0 - 0.1, "grit=1: crest factor drops (signal actually saturated)");
     }
 
@@ -664,7 +667,7 @@ int main() {
         const int zcUp = countZC(diffUp, t + 2500, t + 20000);
         const int zcDown = countZC(diffDown, t + 2500, t + 20000);
         std::printf("  pitch st: zc main %d, +12st %d, -12st %d\n", zc0, zcUp, zcDown);
-        CHECK(zcUp > (int) (1.3 * zc0), "pitch +12 st: extra line shifted up (~octave, loop crossfade smears the count)");
+        CHECK(zcUp > (int) (1.2 * zc0), "pitch +12 st: extra line shifted up (wide 50 ms loop crossfade smears the count)");
         CHECK(zcDown > 0 && zcDown < (int) (0.75 * zc0), "pitch -12 st: extra line shifted down (~octave down)");
         // pitchMix = 0 -> extra line fully muted
         {
