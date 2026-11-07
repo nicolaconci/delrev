@@ -163,9 +163,12 @@ public:
         auto on = b.getToggleState();
         auto track = bounds.reduced (3.0f);
 
-        // guida a scarponcino: scura quando off, ambrata quando acceso (alto contrasto)
-        g.setColour (on ? juce::Colour (0xff4a3413) : juce::Colour (0xff0d0f12));
+        // guida a scarponcino: ben visibile anche da spento (più chiara + bordo),
+        // ambrata quando acceso (alto contrasto)
+        g.setColour (on ? juce::Colour (0xff4a3413) : juce::Colour (0xff232830));
         g.fillRoundedRectangle (bounds, bounds.getHeight() * 0.28f);
+        g.setColour (juce::Colours::white.withAlpha (on ? 0.22f : 0.14f));
+        g.drawRoundedRectangle (bounds, bounds.getHeight() * 0.28f, 1.2f);
 
         // LED di stato: ambra acceso a destra, grigio spento a sinistra
         {

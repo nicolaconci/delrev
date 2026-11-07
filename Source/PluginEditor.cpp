@@ -32,15 +32,15 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     };
 
     titleLabel.setText("essentia", dontSendNotification);
-    titleLabel.setJustificationType(Justification::centred);
+    titleLabel.setJustificationType(Justification::right);
     titleLabel.setColour(Label::textColourId, Colours::white);
-    titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
+    titleLabel.setFont(Font(FontOptions(26.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
 
     taglineLabel.setText("simplicitas est summa subtilitas", dontSendNotification);
     taglineLabel.setJustificationType(Justification::centred);
-    taglineLabel.setColour(Label::textColourId, Colour(0xff8a8f98));
-    taglineLabel.setFont(Font(FontOptions(11.0f, Font::italic)));
+    taglineLabel.setColour(Label::textColourId, Colour(0xff9a9fa8));
+    taglineLabel.setFont(Font(FontOptions(13.0f, Font::italic)));
     addAndMakeVisible(taglineLabel);
 
     // single-knob sections (PRE, MASTER, ATTACK) show only the coloured group
@@ -134,7 +134,7 @@ void StereoDelayHallAudioProcessorEditor::paint(Graphics& g) {
 
 void StereoDelayHallAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(8);
-    titleLabel.setBounds(area.removeFromTop(26));
+    titleLabel.setBounds(area.removeFromTop(32));
     area.removeFromTop(6);
     taglineLabel.setBounds(area.removeFromBottom(18));
     area.removeFromBottom(4);
