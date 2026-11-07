@@ -14,7 +14,7 @@ struct EngineParams {
     float toneR = 1.0f;       // 0..1 lowpass on the right wet
     float feedbackL = 0.35f;  // 0..0.95 recirculation gain, left channel
     float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
-    float smear = 0.0f;       // 0..1 lowpass in the feedback loop (repeat attacks get smeared)
+    float smear = 0.0f;       // 0..1 lowpass applied once to the delay-line input (first repeat smeared, repeats inherit it)
     int smearCurve = 0;       // 0 = linear, 1 = log, 2 = exp mapping of amount -> cutoff
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
@@ -117,9 +117,9 @@ private:
     float mixL = 0.0f, mixR = 0.0f, toneL = 1.0f, toneR = 1.0f;
     float toneLpL = 0.0f, toneLpR = 0.0f; // tone lowpass state
     float feedbackL = 0.0f, feedbackR = 0.0f;
-    // smear state: one-pole lowpass in the feedback loop (per channel)
+    // smear state: one-pole lowpass on the delay-line input (per channel)
     float smear = 0.0f;
-    float fbLpL = 0.0f, fbLpR = 0.0f;
+    float inLpL = 0.0f, inLpR = 0.0f;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

@@ -37,7 +37,7 @@ purple / teal).
 | RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
 | RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
-| SMEAR   | Smear           | 0–100 %           | 0 %     | lowpass in the feedback loop (Strymon Timeline / H9 style): first repeat intact, later repeats smeared so their attack is not heard |
+| SMEAR   | Smear           | 0–100 %           | 0 %     | lowpass applied once to the delay-line input: the first repeat is smeared (soft attack) and later repeats inherit the same shape — no compounding, not darker |
 | SMEAR   | Curve (combo)   | Linear / Log / Exp | Linear | amount → cutoff mapping: Log = stronger early, Exp = only near max |
 | MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                          |
 | MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
@@ -52,7 +52,10 @@ stereo image. The delay line is read with cubic interpolation.
 
 - **stereo → stereo** (normal case)
 - **mono → stereo**: on a mono-track insert the same input feeds both delay
-  channels, and the independent L/R times widen it to stereo
+  channels, and the independent L/R times widen it to stereo. If the host
+  instead upmixes the mono track to a stereo bus with the signal on the left
+  channel only (right input exactly silent), the plugin detects it and
+  duplicates the left channel, so the widening works in insert too
 - **stereo → mono**: mixdown (L+R)/2
 - **mono → mono**
 

@@ -13,7 +13,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
-    fbLpL = fbLpR = 0.0f;
+    inLpL = inLpR = 0.0f;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -119,11 +119,12 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        // smear: one-pole lowpass in the feedback loop (Strymon Timeline / H9
-        // style). Linear filter -> no distortion. The first repeat keeps its
-        // attack; later repeats are progressively smoothed, so the attack of
-        // the repeats is not heard. Curve shapes the amount -> cutoff mapping.
-        float fbL = dL, fbR = dR;
+        // smear: one-pole lowpass applied ONCE to the input entering the delay
+        // line. The first repeat is born smeared (its attack is softened) and
+        // the later repeats inherit the same shape through the raw feedback —
+        // no compounding, so repeats after the first are not darkened further.
+        // Linear filter -> no distortion. Curve shapes amount -> cutoff.
+        float wInL = inL, wInR = inR;
         if (smear > 0.01f) {
             float eff;
             switch (target.smearCurve) {
@@ -131,17 +132,17 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 case 2:  eff = std::pow(smear, 2.0f); break; // exp: only near max
                 default: eff = smear; break;                // linear
             }
-            const float fc = 500.0f * std::pow(32.0f, 1.0f - eff); // 500 Hz .. 16 kHz
+            const float fc = 2000.0f * std::pow(8.0f, 1.0f - eff); // 2 kHz .. 16 kHz
             const float a = 1.0f - std::exp(-6.2831853f * fc / sr);
-            fbLpL += a * (dL - fbLpL);
-            fbLpR += a * (dR - fbLpR);
-            fbL = fbLpL;
-            fbR = fbLpR;
+            inLpL += a * (inL - inLpL);
+            inLpR += a * (inR - inLpR);
+            wInL = inLpL;
+            wInR = inLpR;
         }
 
-        lineL.write(inL + feedbackL * fbL);
+        lineL.write(wInL + feedbackL * dL);
         lineL.advance();
-        lineR.write(inR + feedbackR * fbR);
+        lineR.write(wInR + feedbackR * dR);
         lineR.advance();
 
         float wL = dL, wR = dR;
@@ -187,7 +188,7 @@ void StereoDelayHallEngine::reset() {
     feedbackL = target.feedbackL;
     feedbackR = target.feedbackR;
     smear = target.smear;
-    fbLpL = fbLpR = 0.0f;
+    inLpL = inLpR = 0.0f;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;

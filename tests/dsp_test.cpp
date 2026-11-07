@@ -263,7 +263,7 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
-    // 11) smear: lowpass in the feedback loop - first repeat intact, later repeats smoothed
+    // 11) smear: lowpass applied once to the line input - first repeat smeared, no compounding on later repeats
     {
         auto run = [&](float smear) {
             StereoDelayHallEngine e;
@@ -290,14 +290,14 @@ int main() {
         const float e1smr = std::fabs(pv);
         peakIndex(smr, 2 * t - 20, 2 * t + 20, &pv);
         const float e2smr = std::fabs(pv);
-        std::printf("  smear: echo1 clear %.3f smeared %.3f; echo2 clear %.3f smeared %.3f\n",
-                    (double) e1clear, (double) e1smr, (double) e2clear, (double) e2smr);
-        CHECK(e1clear > 0.8f && e1smr > 0.8f, "smear: first repeat keeps its attack");
-        CHECK(e2clear > 0.8f, "smear=0: 2nd repeat full (~0.9)");
-        CHECK(e2smr < 0.15f * e2clear, "smear=100%: 2nd repeat attack heavily smoothed");
+        std::printf("  smear: echo1 clear %.3f smeared %.3f; echo2 clear %.3f smeared %.3f (ratio %.3f vs fb 0.9)\n",
+                    (double) e1clear, (double) e1smr, (double) e2clear, (double) e2smr, (double) (e2smr / e1smr));
+        CHECK(e1clear > 0.8f, "smear=0: first repeat full");
+        CHECK(e1smr < 0.5f * e1clear, "smear=100%: first repeat attack softened");
+        CHECK(std::fabs(e2smr / e1smr - 0.9f) < 0.1f, "no compounding: echo2/echo1 ratio stays = feedback");
     }
 
-    // 12) smear curve shapes amount -> cutoff: at 50%, exp brightest, log darkest
+    // 12) smear curve shapes amount -> cutoff at the line input: at 50%, exp brightest, log darkest
     {
         auto run = [&](int curve) {
             StereoDelayHallEngine e;
@@ -317,15 +317,15 @@ int main() {
         float pv = 0.0f;
         for (int c = 0; c < 3; ++c) {
             auto v = run(c);
-            peakIndex(v, 2 * t - 20, 2 * t + 20, &pv);
+            peakIndex(v, t - 20, t + 20, &pv);
             a[c] = std::fabs(pv);
         }
-        std::printf("  smear=0.5 echo2 amp: linear %.3f log %.3f exp %.3f\n",
+        std::printf("  smear=0.5 echo1 amp: linear %.3f log %.3f exp %.3f\n",
                     (double) a[0], (double) a[1], (double) a[2]);
-        CHECK(a[2] > a[0] && a[0] > a[1], "at 50%: exp > linear > log (echo2 amplitude)");
-        CHECK(a[0] > 0.2f && a[0] < 0.4f, "linear ~0.30");
-        CHECK(a[1] > 0.1f && a[1] < 0.2f, "log ~0.15 (darkest)");
-        CHECK(a[2] > 0.5f && a[2] < 0.65f, "exp ~0.55 (brightest)");
+        CHECK(a[2] > a[0] && a[0] > a[1], "at 50%: exp > linear > log (echo1 amplitude)");
+        CHECK(a[0] > 0.45f && a[0] < 0.65f, "linear ~0.55");
+        CHECK(a[1] > 0.33f && a[1] < 0.48f, "log ~0.40 (darkest)");
+        CHECK(a[2] > 0.65f && a[2] < 0.8f, "exp ~0.73 (brightest)");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,
