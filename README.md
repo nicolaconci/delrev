@@ -86,7 +86,8 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
 
 - **Grit** (0–100 %, box SMEAR): tanh soft-clip saturation on the repeats with a slow RMS
   make-up gain — the perceived volume stays constant and only saturation is added (hot
-  peaks are clamped, never louder than without grit)
+  peaks are clamped, never louder than without grit). The knob range is compressed on
+  purpose: 100 % gives the saturation that the raw amount reached at ~5 %.
 - **Mod Vol** (0–100 %, default 100 %, small knob at the bottom of MOD): scales the LFO depth
 - **Pitch L / Pitch R** (ICE-style; small knobs at the bottom of LEFT/RIGHT, centered at
   12 o'clock = `1:1`, double-click = `1:1`): ratio vs the channel's main delay time, snapped
