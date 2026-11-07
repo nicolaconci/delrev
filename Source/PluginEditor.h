@@ -26,6 +26,8 @@ private:
     juce::GroupComponent groupSmear, groupMod, groupRev, groupWet;
     juce::ToggleButton swellInputButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> swellInputAttachment;
+    juce::Label wetLabel;
+    juce::Label swellInputLabel;
     juce::ToggleButton wetButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
     std::unique_ptr<StudioLookAndFeel> studioLookAndFeel;

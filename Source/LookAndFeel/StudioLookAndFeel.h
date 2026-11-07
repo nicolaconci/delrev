@@ -40,7 +40,7 @@ public:
                            float rotaryEndAngle, juce::Slider& s) override
     {
         auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
-        auto diameter     = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.78f;
+        auto diameter     = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.72f;
         auto knobArea     = bounds.withSizeKeepingCentre (diameter, diameter);
         auto centre       = knobArea.getCentre();
         auto radius       = knobArea.getWidth() * 0.5f;
@@ -161,14 +161,28 @@ public:
     {
         auto bounds = b.getLocalBounds().toFloat().reduced (2.0f);
         auto on = b.getToggleState();
+        auto track = bounds.reduced (3.0f);
 
-        // guida a scarponcino
-        g.setColour (juce::Colour (0xff0d0f12));
+        // guida a scarponcino: scura quando off, ambrata quando acceso (alto contrasto)
+        g.setColour (on ? juce::Colour (0xff4a3413) : juce::Colour (0xff0d0f12));
         g.fillRoundedRectangle (bounds, bounds.getHeight() * 0.28f);
+
+        // LED di stato: ambra acceso a destra, grigio spento a sinistra
+        {
+            auto ledR = 4.5f;
+            auto ledX = on ? track.getRight() - 8.0f : track.getX() + 8.0f;
+            auto ledC = juce::Point<float> (ledX, track.getCentreY());
+            g.setColour (on ? juce::Colour (0xffe8b84b) : juce::Colour (0xff3a3d42));
+            g.fillEllipse (juce::Rectangle<float> (ledC.x - ledR, ledC.y - ledR, ledR * 2.0f, ledR * 2.0f));
+            if (on)
+            {
+                g.setColour (juce::Colour (0xffe8b84b).withAlpha (0.25f));
+                g.fillEllipse (juce::Rectangle<float> (ledC.x - ledR * 2.2f, ledC.y - ledR * 2.2f, ledR * 4.4f, ledR * 4.4f));
+            }
+        }
 
         // leva che scivola
         auto knobW = bounds.getWidth() * 0.46f;
-        auto track = bounds.reduced (3.0f);
         auto x = on ? track.getRight() - knobW : track.getX();
         auto lever = juce::Rectangle<float> (x, track.getY(), knobW, track.getHeight());
         juce::ColourGradient leverGrad (juce::Colour (0xfff2f5f8), lever.getCentreX(), lever.getY(),
