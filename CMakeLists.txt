@@ -18,6 +18,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
+# Warnings coming from JUCE's own modules and its bundled third-party code
+# (Harfbuzz, VST3 SDK) are not ours to fix: silence them on those targets only.
+function(_essentia_silence_juce_warnings dir)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        get_directory_property(_targets "${dir}" BUILDSYSTEM_TARGETS)
+        foreach(_t IN LISTS _targets)
+            target_compile_options("${_t}" PRIVATE
+                -Wno-nontrivial-memcall
+                -Wno-unused-but-set-variable
+                -Wno-switch-enum)
+        endforeach()
+        get_directory_property(_subdirs "${dir}" SUBDIRECTORIES)
+        foreach(_d IN LISTS _subdirs)
+            _essentia_silence_juce_warnings("${_d}")
+        endforeach()
+    endif()
+endfunction()
+_essentia_silence_juce_warnings("${juce_SOURCE_DIR}")
+
 # AU (Audio Unit) is the native macOS format; JUCE enables it automatically on macOS only.
 juce_add_plugin(StereoDelayHall
     COMPANY_NAME            "Vibe Audio"
@@ -47,7 +66,6 @@ target_include_directories(StereoDelayHall PRIVATE Source)
 target_compile_definitions(StereoDelayHall PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
-    JUCE_DISPLAY_SPLASH_SCREEN=0
     JUCE_VST3_HOST_CROSS_PLATFORM_UID=1
 )
 
