@@ -67,6 +67,9 @@ target_compile_definitions(StereoDelayHall PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_HOST_CROSS_PLATFORM_UID=1
+    # advertise supported I/O: mono->mono, mono->stereo, stereo->stereo,
+    # so hosts that honor preferred layouts (e.g. on mono tracks) pick mono->stereo
+    "JucePlugin_PreferredChannelConfigurations={1,1},{1,2},{2,2}"
 )
 
 # silence warnings coming from the bundled Steinberg VST3 SDK headers
