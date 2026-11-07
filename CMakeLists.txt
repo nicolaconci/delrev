@@ -80,7 +80,8 @@ foreach(_t IN ITEMS StereoDelayHall StereoDelayHall_VST3 StereoDelayHall_AU Ster
                                                -Wno-nontrivial-memcall
                                                -Wno-unused-but-set-variable
                                                -Wno-switch-enum
-                                               -Wno-macro-redefined>)
+                                               -Wno-macro-redefined
+                                               -Wno-unnecessary-virtual-specifier>)
     endif()
 endforeach()
 
