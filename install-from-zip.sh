@@ -11,7 +11,7 @@ ZIP="${1:-build/essentia-1.0.0.zip}"
 TMP="$(mktemp -d)"
 echo "==> Unzipping $ZIP"
 unzip -q "$ZIP" -d "$TMP"
-DIR="$(find "$TMP" -name install.sh -printf '%h' | head -1)"
+DIR="$(dirname "$(find "$TMP" -name install.sh | head -1)")"
 [ -n "$DIR" ] || { echo "ERROR: install.sh not found inside the zip"; exit 1; }
 
 echo "==> Installing"
