@@ -224,7 +224,7 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.revMix = revMixParam->load() / 100.0f;
     p.revWidth = revWidthParam->load() / 100.0f;
     p.wetGainDb = wetGainParam->load();
-    p.grit = gritParam->load() * 0.005f; // knob 0..100% -> engine 0..0.5: 100% = max useful saturation (raw 50%)
+    p.grit = gritParam->load() * 0.007f; // knob 0..100% -> engine 0..0.7: 100% = max useful saturation (raw 70%)
     p.modVol = modVolParam->load() / 100.0f;
     p.pitchL = pitchLParam->load();
     p.pitchR = pitchRParam->load();

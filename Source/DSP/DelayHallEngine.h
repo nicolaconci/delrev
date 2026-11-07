@@ -63,36 +63,40 @@ private:
     };
 
     // extra pitch line: at each transient the recent input (ring buffer) is "captured"
-    // (read pointer restarted at the transient), transposed by the pitch amount
-    // (read rate 2^(st/12)) and held (looped with a crossfade at the wrap); the held
-    // snippet is echoed through a delay line at ratio x main time
+    // (read pointer restarted at the transient, with a fade-in masking the jump), transposed
+    // by the pitch amount (read rate 2^(st/12)) and held (looped with a crossfade at the
+    // wrap); the held snippet is echoed through a delay line at ratio x main time
     struct CaptureHold {
         DelayLine line;          // echo line at ratio x main time
-        std::vector<float> ring; // ring buffer with the last capLen input samples
+        std::vector<float> ring; // ring buffer with the last capLen input samples (loop source)
         int ringPos = 0;
         int capLen = 0;
         float window = 0.0f;     // crossfade window at the loop wrap
         float rp = 0.0f;         // loop read position
+        float fade = 1.0f;       // fade-in after a capture (masks the loop restart)
         void prepare(double sr, int lineMaxSamples) {
             line.resize(lineMaxSamples);
             capLen = (int) std::ceil(0.150 * sr); // 150 ms capture/hold window
             ring.assign((size_t) capLen, 0.0f);
-            window = std::min(capLen * 0.5f, 0.020f * (float) sr); // 20 ms wrap crossfade
+            window = std::min(capLen * 0.5f, 0.030f * (float) sr); // 30 ms wrap crossfade
             ringPos = 0;
             rp = 0.0f;
+            fade = 1.0f;
         }
         void clear() {
             line.clear();
             std::fill(ring.begin(), ring.end(), 0.0f);
             ringPos = 0;
             rp = 0.0f;
+            fade = 1.0f;
         }
         inline void push(float x) {
             ring[(size_t) ringPos] = x;
             ringPos = (ringPos + 1) % capLen;
         }
-        inline void capture() { // restart the loop at the newest sample (the transient)
-            rp = (float) ((ringPos - 1 + capLen) % capLen);
+        inline void capture() { // restart the loop at the transient; the fade-in masks the jump
+            rp = (float) ((ringPos - 1 + capLen) % capLen); // newest sample = the transient
+            fade = 0.0f;
         }
         inline float readAt(float pos) const {
             const int n = capLen;
@@ -109,7 +113,9 @@ private:
             const float d = (float) capLen - rp;
             float w = d / window;
             if (w > 1.0f) w = 1.0f;
-            return w * readAt(rp) + (1.0f - w) * readAt(rp - (float) capLen);
+            const float out = w * readAt(rp) + (1.0f - w) * readAt(rp - (float) capLen);
+            fade += (1.0f - fade) * 0.02f; // ~1 ms fade-in after each capture
+            return out * fade;
         }
     };
 
@@ -197,6 +203,7 @@ private:
     float gritInL = 0.0f, gritOutL = 0.0f, gritInR = 0.0f, gritOutR = 0.0f; // slow RMS follower: constant-volume grit
     CaptureHold chL, chR;
     int capTimerL = 1 << 30, capTimerR = 1 << 30; // capture refractory timers
+    float pOffL = 0.0f, pOffR = 0.0f; // smoothed pitch-line delay offsets (no time jumps)
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;
     float smoothCoef = 0.0f;
