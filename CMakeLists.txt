@@ -73,8 +73,11 @@ target_compile_definitions(StereoDelayHall PRIVATE
 # Harfbuzz when compiled into the plugin targets (shared code + per-format)
 foreach(_t IN ITEMS StereoDelayHall StereoDelayHall_VST3 StereoDelayHall_AU StereoDelayHall_Standalone)
     if (TARGET ${_t})
+        # our own code keeps full warnings (-Wall -Wextra first), then the
+        # -Wno-* for third-party code come last so they win over any -W re-enable
         target_compile_options(${_t} PRIVATE
-            $<$<CXX_COMPILER_ID:AppleClang,Clang>:-Wno-nontrivial-memcall
+            $<$<CXX_COMPILER_ID:AppleClang,Clang>:-Wall -Wextra
+                                               -Wno-nontrivial-memcall
                                                -Wno-unused-but-set-variable
                                                -Wno-switch-enum
                                                -Wno-macro-redefined>)
@@ -87,7 +90,6 @@ target_link_libraries(StereoDelayHall PRIVATE
     juce::juce_gui_extra
     juce::juce_recommended_config_flags
     juce::juce_recommended_lto_flags
-    juce::juce_recommended_warning_flags
 )
 
 # Standalone DSP unit test (no JUCE needed):
