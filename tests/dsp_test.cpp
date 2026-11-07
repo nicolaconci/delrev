@@ -605,7 +605,7 @@ int main() {
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = pitchSt;
+            p.pitchL = pitchSt; p.pitchTimeLms = 100.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 0; i < 30000; ++i)
@@ -629,6 +629,27 @@ int main() {
         const int zc12 = countZC(diff, t + 500, t + 20000);
         std::printf("  pitch: zc main %d, zc extra(+12st) %d\n", zc0, zc12);
         CHECK(zc12 > (int) (1.6 * zc0), "pitch +12 st: extra line ~doubles the frequency");
+    }
+
+    // 20) pitch line has its own delay time (pitchTimeL), independent from Time L
+    {
+        StereoDelayHallEngine e;
+        e.prepare(sr, 512);
+        EngineParams p;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+        p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+        p.pitchL = 12.0f; p.pitchTimeLms = 200.0f;
+        e.setParams(p);
+        std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+        l[0] = 1.0f;
+        e.process(l.data(), r.data(), 30000);
+        const int t = (int) (0.100 * sr);       // main echo at 100 ms
+        const int t2 = (int) (0.200 * sr);      // pitch line should echo at 200 ms
+        double eMain = 0.0, ePitch = 0.0;
+        for (int i = t - 20; i < t + 20; ++i) eMain += std::fabs(l[(size_t) i]);
+        for (int i = t2 - 20; i < t2 + 2500; ++i) ePitch += std::fabs(l[(size_t) i]);
+        std::printf("  pitchTime: energy at 100ms %.3f, at 200ms %.3f\n", eMain, ePitch);
+        CHECK(ePitch > 0.05 && eMain > 0.9f, "pitch line echoes at its own time (200 ms), main at 100 ms");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

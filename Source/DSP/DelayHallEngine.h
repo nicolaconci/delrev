@@ -30,6 +30,8 @@ struct EngineParams {
     float modVol = 1.0f;      // 0..1 modulator (LFO) volume
     float pitchL = 0.0f;      // extra line L pitch shift, semitones -12..+12 (0 = bypass)
     float pitchR = 0.0f;      // extra line R pitch shift, semitones
+    float pitchTimeLms = 375.0f; // extra line L delay time (ms), independent from Time L
+    float pitchTimeRms = 500.0f; // extra line R delay time (ms)
 };
 
 // Stereo delay with independent L/R times, time modulation, feedback, and a
@@ -185,7 +187,7 @@ private:
     float rampL = 1.0f, rampR = 1.0f;
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
-    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f;
+    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, pitchTimeL = 375.0f, pitchTimeR = 500.0f;
     PitchLine plL, plR;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;

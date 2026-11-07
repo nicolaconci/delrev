@@ -56,6 +56,10 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("modVol", "Mod Vol", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
     addFloat("pitchL", "Pitch L", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
     addFloat("pitchR", "Pitch R", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
+    NormalisableRange<float> pitchTimeRange(20.0f, 2000.0f, 0.1f);
+    pitchTimeRange.setSkewForCentre(500.0f);
+    addFloat("pitchTimeL", "Pitch Time L", pitchTimeRange, 375.0f, makeAttrs("ms", 0));
+    addFloat("pitchTimeR", "Pitch Time R", pitchTimeRange, 500.0f, makeAttrs("ms", 0));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"swellInput", 1}, "Swell on Input", false));
 
@@ -129,6 +133,8 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     modVolParam = apvts.getRawParameterValue("modVol");
     pitchLParam = apvts.getRawParameterValue("pitchL");
     pitchRParam = apvts.getRawParameterValue("pitchR");
+    pitchTimeLParam = apvts.getRawParameterValue("pitchTimeL");
+    pitchTimeRParam = apvts.getRawParameterValue("pitchTimeR");
 }
 
 StereoDelayHallAudioProcessor::~StereoDelayHallAudioProcessor() = default;
@@ -184,6 +190,8 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.modVol = modVolParam->load() / 100.0f;
     p.pitchL = pitchLParam->load();
     p.pitchR = pitchRParam->load();
+    p.pitchTimeLms = pitchTimeLParam->load();
+    p.pitchTimeRms = pitchTimeRParam->load();
     if (wet100Param->load() > 0.5f) {
         p.mixL = 1.0f;
         p.mixR = 1.0f;

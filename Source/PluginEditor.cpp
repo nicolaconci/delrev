@@ -19,11 +19,13 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"toneL",      "Tone L",     Colour(0xff4da3ff)},
         {"mixL",       "Mix L",      Colour(0xff4da3ff)},
         {"pitchL",     "Pitch L",    Colour(0xff4da3ff)}, // small, bottom of LEFT
+        {"pitchTimeL", "Time",       Colour(0xff4da3ff)},
         {"timeR",      "Time R",     Colour(0xff4dff88)}, // RIGHT
         {"feedbackR",  "Feedback R", Colour(0xff4dff88)},
         {"toneR",      "Tone R",     Colour(0xff4dff88)},
         {"mixR",       "Mix R",      Colour(0xff4dff88)},
         {"pitchR",     "Pitch R",    Colour(0xff4dff88)}, // small, bottom of RIGHT
+        {"pitchTimeR", "Time",       Colour(0xff4dff88)},
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
         {"smear",      "Smear|Crystal", Colour(0xffaaaaaa)}, // SMEAR
         {"swell",      "Swell",      Colour(0xffaaaaaa)},
@@ -51,7 +53,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
 
     // single-knob sections (PRE, MASTER, ATTACK) show only the coloured group
     // title, not an extra label above the knob
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 11; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 13; };
 
     for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
@@ -71,9 +73,9 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     }
 
     // bipolar knobs (smear|crystal, pitch L/R): double-click returns to center (off/0)
-    sliders[12].setDoubleClickReturnValue(true, 0.0);
+    sliders[14].setDoubleClickReturnValue(true, 0.0);
     sliders[5].setDoubleClickReturnValue(true, 0.0);
-    sliders[10].setDoubleClickReturnValue(true, 0.0);
+    sliders[11].setDoubleClickReturnValue(true, 0.0);
 
     swellInputButton.setButtonText("On Input");
     swellInputButton.setColour(ToggleButton::textColourId, Colours::white);
@@ -147,7 +149,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     taglineLabel.setBounds(area.removeFromBottom(18));
     area.removeFromBottom(4);
 
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 11; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 13; };
     auto placeKnob = [&](int i, Rectangle<int> cell) {
         if (hasInnerLabel(i))
             labels[i].setBounds(cell.removeFromTop(16));
@@ -183,7 +185,9 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         auto lb = la.removeFromBottom(70);
         for (int i = 0; i < 4; ++i)
             placeKnob(1 + i, cellOf(la, i, 4));
-        placeSmall(5, lb); // Pitch L
+        auto lbHalf = lb.getWidth() / 2;
+        placeSmall(5, Rectangle<int>(lb.getX(), lb.getY(), lbHalf, lb.getHeight()));      // Pitch L
+        placeSmall(6, Rectangle<int>(lb.getX() + lbHalf, lb.getY(), lbHalf, lb.getHeight())); // Pitch Time L
     }
     row1.removeFromLeft(8);
 
@@ -193,14 +197,16 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         auto ra = Rectangle<int>(right.getX() + 6, right.getY() + 16, right.getWidth() - 12, right.getHeight() - 22);
         auto rb = ra.removeFromBottom(70);
         for (int i = 0; i < 4; ++i)
-            placeKnob(6 + i, cellOf(ra, i, 4));
-        placeSmall(10, rb); // Pitch R
+            placeKnob(7 + i, cellOf(ra, i, 4));
+        auto rbHalf = rb.getWidth() / 2;
+        placeSmall(11, Rectangle<int>(rb.getX(), rb.getY(), rbHalf, rb.getHeight()));      // Pitch R
+        placeSmall(12, Rectangle<int>(rb.getX() + rbHalf, rb.getY(), rbHalf, rb.getHeight())); // Pitch Time R
     }
     row1.removeFromLeft(8);
 
     auto master = row1;
     groupMaster.setBounds(master);
-    placeKnob(11, singleCell(master));
+    placeKnob(13, singleCell(master));
 
     // Row 2: SMEAR (3 knobs + On Input) | MOD (Rate, Depth + Vol small) | REV (3) | WET (Wet Gain + 100% Wet)
     auto row2 = area;
@@ -214,7 +220,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         swellInputLabel.setBounds(sb.removeFromTop(16));
         swellInputButton.setBounds(sb.withSizeKeepingCentre(110, 22));
         for (int i = 0; i < 3; ++i)
-            placeKnob(12 + i, cellOf(sa, i, 3));
+            placeKnob(14 + i, cellOf(sa, i, 3));
     }
     row2.removeFromLeft(8);
 
@@ -224,15 +230,15 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         auto ma = Rectangle<int>(mod.getX() + 6, mod.getY() + 16, mod.getWidth() - 12, mod.getHeight() - 22);
         auto mb = ma.removeFromBottom(70);
         for (int i = 0; i < 2; ++i)
-            placeKnob(15 + i, cellOf(ma, i, 2));
-        placeSmall(17, mb); // Mod Vol
+            placeKnob(17 + i, cellOf(ma, i, 2));
+        placeSmall(19, mb); // Mod Vol
     }
     row2.removeFromLeft(8);
 
     auto rev = row2.removeFromLeft(300);
     groupRev.setBounds(rev);
     for (int i = 0; i < 3; ++i)
-        placeKnob(18 + i, cellOf(Rectangle<int>(rev.getX() + 6, rev.getY() + 16, rev.getWidth() - 12, rev.getHeight() - 22), i, 3));
+        placeKnob(20 + i, cellOf(Rectangle<int>(rev.getX() + 6, rev.getY() + 16, rev.getWidth() - 12, rev.getHeight() - 22), i, 3));
     row2.removeFromLeft(8);
 
     auto wet = row2;
@@ -242,6 +248,6 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         auto wb = wa.removeFromBottom(46);
         wetLabel.setBounds(wb.removeFromTop(16));
         wetButton.setBounds(wb.withSizeKeepingCentre(120, 24));
-        placeKnob(21, wa);
+        placeKnob(23, wa);
     }
 }
