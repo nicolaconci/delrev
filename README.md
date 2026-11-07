@@ -190,8 +190,11 @@ settings (no NaN), 48 kHz operation.
 
 ## License
 
-The code in this repository is yours, but **JUCE is dual-licensed**: AGPLv3 or
-the commercial JUCE licence (https://juce.com/get-juce/). If you distribute the
-plugin closed-source/commercially without complying with the AGPLv3, you need a
-commercial JUCE licence. For personal use or AGPLv3 open-source projects, no
-further licence is needed.
+The code in this repository is open source under the **MIT License** — see
+[LICENSE](LICENSE). GitHub shows the MIT badge automatically.
+
+Note: **JUCE** (the framework this plugin is built with) is dual-licensed
+AGPLv3 / commercial (https://juce.com/get-juce/). Using JUCE under the AGPLv3
+is free if you comply with its terms (e.g. open-sourcing your own plugin code,
+which this repo does); if you distribute the plugin commercially/closed-source
+you need a commercial JUCE licence.
