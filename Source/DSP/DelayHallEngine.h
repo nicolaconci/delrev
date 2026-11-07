@@ -32,6 +32,8 @@ struct EngineParams {
     float pitchR = 0.0f;      // extra line R pitch shift, semitones
     float pitchTimeLms = 375.0f; // extra line L delay time (ms), independent from Time L
     float pitchTimeRms = 500.0f; // extra line R delay time (ms)
+    float pitchMixL = 0.5f;   // extra line L level in the wet mix (0..1)
+    float pitchMixR = 0.5f;   // extra line R level
 };
 
 // Stereo delay with independent L/R times, time modulation, feedback, and a
@@ -187,7 +189,7 @@ private:
     float rampL = 1.0f, rampR = 1.0f;
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
-    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, pitchTimeL = 375.0f, pitchTimeR = 500.0f;
+    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, pitchTimeL = 375.0f, pitchTimeR = 500.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
     PitchLine plL, plR;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;

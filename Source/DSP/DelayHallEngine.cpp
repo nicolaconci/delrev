@@ -53,6 +53,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     pitchR = def.pitchR;
     pitchTimeL = def.pitchTimeLms;
     pitchTimeR = def.pitchTimeRms;
+    pitchMixL = def.pitchMixL;
+    pitchMixR = def.pitchMixR;
     paramsSnapped = false;
     lfoPhase = 0.0f;
 }
@@ -83,6 +85,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.pitchR = std::clamp(c.pitchR, -12.0f, 12.0f);
     c.pitchTimeLms = std::clamp(c.pitchTimeLms, minTimeMs, maxTimeMs);
     c.pitchTimeRms = std::clamp(c.pitchTimeRms, minTimeMs, maxTimeMs);
+    c.pitchMixL = std::clamp(c.pitchMixL, 0.0f, 1.0f);
+    c.pitchMixR = std::clamp(c.pitchMixR, 0.0f, 1.0f);
     target = c;
     targetPreGain = dbToLinear(c.preGainDb);
     targetMaster = dbToLinear(c.masterDb);
@@ -112,6 +116,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         pitchR = c.pitchR;
         pitchTimeL = c.pitchTimeLms;
         pitchTimeR = c.pitchTimeRms;
+        pitchMixL = c.pitchMixL;
+        pitchMixR = c.pitchMixR;
         paramsSnapped = true;
     }
 }
@@ -146,6 +152,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         pitchR += (target.pitchR - pitchR) * smoothCoef;
         pitchTimeL += (target.pitchTimeLms - pitchTimeL) * smoothCoef;
         pitchTimeR += (target.pitchTimeRms - pitchTimeR) * smoothCoef;
+        pitchMixL += (target.pitchMixL - pitchMixL) * smoothCoef;
+        pitchMixR += (target.pitchMixR - pitchMixR) * smoothCoef;
 
         const float inL = left[i] * preGain;
         const float inR = right[i] * preGain;
@@ -241,9 +249,9 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float ratioR = std::pow(2.0f, pitchR / 12.0f);
         float extraL = 0.0f, extraR = 0.0f;
         if (std::fabs(pitchL) >= 1.0f)
-            extraL = 0.5f * plL.process(wInL * gL, ratioL, pitchTimeL * sr * 0.001f);
+            extraL = pitchMixL * plL.process(wInL * gL, ratioL, pitchTimeL * sr * 0.001f);
         if (std::fabs(pitchR) >= 1.0f)
-            extraR = 0.5f * plR.process(wInR * gR, ratioR, pitchTimeR * sr * 0.001f);
+            extraR = pitchMixR * plR.process(wInR * gR, ratioR, pitchTimeR * sr * 0.001f);
 
         float wL = dL + extraL, wR = dR + extraR;
 
@@ -327,6 +335,8 @@ void StereoDelayHallEngine::reset() {
     pitchR = target.pitchR;
     pitchTimeL = target.pitchTimeLms;
     pitchTimeR = target.pitchTimeRms;
+    pitchMixL = target.pitchMixL;
+    pitchMixR = target.pitchMixR;
     plL.clear();
     plR.clear();
     paramsSnapped = true;

@@ -89,8 +89,8 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
 - **Pitch L / Pitch R** (−12..+12 semitones, step 1 st, small knobs at the bottom of LEFT/RIGHT,
   centered at 12 o'clock, double-click = 0): extra pitch-shifted delay line per channel
   (dual-tap crossfade shifter), mixed into the same wet pipeline; at 0 st the line is bypassed.
-  Each pitch line has its own **Pitch Time L/R** (20–2000 ms, small knob next to Pitch) and
-  inherits the channel's Tone; main Time L/R stays independent.
+  Each pitch line has its own **Pitch Time L/R** (20–2000 ms) and **Pitch Mix L/R** (level, default 50%, 0 = muted) —
+  small knobs next to Pitch at the bottom of LEFT/RIGHT — and inherits the channel's Tone; main Time L/R stays independent.
 
 ## Bus layouts
 

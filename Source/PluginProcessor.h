@@ -66,6 +66,8 @@ private:
     std::atomic<float>* pitchRParam = nullptr;
     std::atomic<float>* pitchTimeLParam = nullptr;
     std::atomic<float>* pitchTimeRParam = nullptr;
+    std::atomic<float>* pitchMixLParam = nullptr;
+    std::atomic<float>* pitchMixRParam = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessor)
 };

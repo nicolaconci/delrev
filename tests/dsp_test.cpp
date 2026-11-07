@@ -629,6 +629,23 @@ int main() {
         const int zc12 = countZC(diff, t + 500, t + 20000);
         std::printf("  pitch: zc main %d, zc extra(+12st) %d\n", zc0, zc12);
         CHECK(zc12 > (int) (1.6 * zc0), "pitch +12 st: extra line ~doubles the frequency");
+        // pitchMix = 0 -> extra line fully muted
+        {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.pitchL = 12.0f; p.pitchTimeLms = 100.0f; p.pitchMixL = 0.0f;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 0; i < 30000; ++i) l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            e.process(l.data(), r.data(), 30000);
+            double en = 0.0;
+            for (int i = t + 500; i < t + 20000; ++i) en += std::fabs(l[(size_t) i] - base[(size_t) i]);
+            std::printf("  pitchMix=0: extra-line energy %.5f\n", en);
+            CHECK(en < 1e-3, "pitchMix=0: extra line muted");
+        }
     }
 
     // 20) pitch line has its own delay time (pitchTimeL), independent from Time L
