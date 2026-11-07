@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# One-command setup for StereoDelayHall on macOS.
+# One-command setup for essentia on macOS.
 # Run from the repository root: ./setup.sh
-# Configures CMake, builds VST3 + AU + Standalone, runs the DSP unit tests,
-# signs the plugin bundles (ad-hoc) and installs them into
-# ~/Library/Audio/Plug-Ins/, overwriting any existing installation.
+# Fetches JUCE automatically (first run, needs network + git), configures CMake,
+# builds VST3 + AU + Standalone, runs the DSP unit tests, signs the bundles
+# (ad-hoc) and installs them into ~/Library/Audio/Plug-Ins/, overwriting any
+# previous install.
 set -euo pipefail
 
 cd "$(dirname "$0")"
@@ -13,6 +14,29 @@ BUILD_DIR=build
 ARTEFACTS="$BUILD_DIR/StereoDelayHall_artefacts/$BUILD_TYPE"
 VST3_DIR="$HOME/Library/Audio/Plug-Ins/VST3"
 AU_DIR="$HOME/Library/Audio/Plug-Ins/Components"
+
+echo "==> Checking prerequisites"
+command -v cmake >/dev/null 2>&1 || { echo "ERROR: cmake not found (brew install cmake)"; exit 1; }
+command -v git   >/dev/null 2>&1 || { echo "ERROR: git not found (install Xcode Command Line Tools)"; exit 1; }
+xcode-select -p >/dev/null 2>&1 || { echo "ERROR: Xcode Command Line Tools missing (xcode-select --install)"; exit 1; }
+
+echo "==> Configuring CMake ($BUILD_TYPE) — first run downloads JUCE via git (needs network)"
+ok=""
+for attempt in 1 2 3; do
+    if cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE; then ok=1; break; fi
+    echo "    configure attempt $attempt failed, retrying in 5 s..."
+    sleep 5
+done
+[ -n "$ok" ] || { echo "ERROR: cmake configure failed (see output above). Check network/git access to github.com."; exit 1; }
+[ -d "$BUILD_DIR/_deps/juce-src" ] || { echo "ERROR: JUCE was not fetched into $BUILD_DIR/_deps — check network access to github.com"; exit 1; }
+echo "    JUCE fetched OK"
+
+echo "==> Building VST3 + AU + Standalone"
+cmake --build "$BUILD_DIR" --config $BUILD_TYPE
+
+echo "==> Running DSP unit tests"
+cmake --build "$BUILD_DIR" --target dsp_test
+"$BUILD_DIR/dsp_test" | tail -1
 
 # Bundles are directories; prefer the standard JUCE layout, fall back to a search.
 find_bundle() {
@@ -24,22 +48,8 @@ find_bundle() {
 VST3_BUNDLE="$(find_bundle StereoDelayHall.vst3 VST3)"
 AU_BUNDLE="$(find_bundle StereoDelayHall.component AU)"
 APP_BUNDLE="$(find_bundle StereoDelayHall.app Standalone)"
-[ -n "$VST3_BUNDLE" ] || { echo "ERROR: StereoDelayHall.vst3 not found under $BUILD_DIR — did the build succeed?"; exit 1; }
-[ -n "$AU_BUNDLE" ]   || { echo "ERROR: StereoDelayHall.component not found under $BUILD_DIR — did the build succeed?"; exit 1; }
-
-echo "==> Checking prerequisites"
-command -v cmake >/dev/null 2>&1 || { echo "ERROR: cmake not found (brew install cmake)"; exit 1; }
-xcode-select -p >/dev/null 2>&1 || { echo "ERROR: Xcode Command Line Tools missing (xcode-select --install)"; exit 1; }
-
-echo "==> Configuring CMake ($BUILD_TYPE)"
-cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=$BUILD_TYPE
-
-echo "==> Building VST3 + AU + Standalone"
-cmake --build "$BUILD_DIR" --config $BUILD_TYPE
-
-echo "==> Running DSP unit tests"
-cmake --build "$BUILD_DIR" --target dsp_test
-"$BUILD_DIR/dsp_test" | tail -1
+[ -n "$VST3_BUNDLE" ] || { echo "ERROR: StereoDelayHall.vst3 not found under $BUILD_DIR — build failed?"; exit 1; }
+[ -n "$AU_BUNDLE" ]   || { echo "ERROR: StereoDelayHall.component not found under $BUILD_DIR — build failed?"; exit 1; }
 
 echo "==> Signing bundles (ad-hoc)"
 codesign --force --deep --sign - "$VST3_BUNDLE" \

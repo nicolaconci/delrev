@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # run on older Macs too (Catalina+); raise only if you need newer APIs
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version")
+set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0" CACHE STRING "Minimum macOS version")
 
 project(StereoDelayHall VERSION 1.0.0)
 
@@ -84,7 +84,8 @@ foreach(_t IN ITEMS StereoDelayHall StereoDelayHall_VST3 StereoDelayHall_AU Ster
                                                -Wno-unused-but-set-variable
                                                -Wno-switch-enum
                                                -Wno-macro-redefined
-                                               -Wno-unnecessary-virtual-specifier>)
+                                               -Wno-unnecessary-virtual-specifier
+                                               -Wno-#warnings>)
     endif()
 endforeach()
 
