@@ -133,46 +133,50 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     const int inCh = inBus.getNumChannels();
     const int outCh = outBus.getNumChannels();
 
-    if (inCh >= 2 && outCh >= 2) {
-        // stereo -> stereo, in place
-        engine.process(outBus.getWritePointer(0), outBus.getWritePointer(1), numSamples);
-        return;
-    }
-
     if (monoScratch.getNumSamples() < numSamples)
         monoScratch.setSize(2, numSamples, false, false, true);
     float* tmpL = monoScratch.getWritePointer(0);
     float* tmpR = monoScratch.getWritePointer(1);
 
-    if (inCh == 1 && outCh >= 2) {
-        // mono -> stereo: duplicate the input on both engine channels
+    if (inCh >= 2) {
+        std::copy(inBus.getReadPointer(0), inBus.getReadPointer(0) + numSamples, tmpL);
+        std::copy(inBus.getReadPointer(1), inBus.getReadPointer(1) + numSamples, tmpR);
+        // Some hosts upmix a mono track to a stereo bus by sending the signal on
+        // the left channel only. If the right input is exactly silent (and left
+        // is not), treat it as mono and duplicate, so the plugin widens correctly
+        // when inserted on a mono channel.
+        if (outCh >= 2) {
+            bool rightSilent = true, leftHasSignal = false;
+            for (int i = 0; i < numSamples; ++i) {
+                if (tmpR[i] != 0.0f) rightSilent = false;
+                if (tmpL[i] != 0.0f) leftHasSignal = true;
+            }
+            if (rightSilent && leftHasSignal)
+                std::copy(tmpL, tmpL + numSamples, tmpR);
+        }
+    } else if (inCh == 1) {
         const float* in = inBus.getReadPointer(0);
         std::copy(in, in + numSamples, tmpL);
         std::copy(in, in + numSamples, tmpR);
-        engine.process(tmpL, tmpR, numSamples);
+    } else {
+        std::fill(tmpL, tmpL + numSamples, 0.0f);
+        std::fill(tmpR, tmpR + numSamples, 0.0f);
+    }
+
+    engine.process(tmpL, tmpR, numSamples);
+
+    if (outCh >= 2) {
+        // stereo out (stereo->stereo, or mono->stereo widening)
         std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
         std::copy(tmpR, tmpR + numSamples, outBus.getWritePointer(1));
     } else if (inCh >= 2 && outCh == 1) {
         // stereo -> mono: mix down
-        std::copy(inBus.getReadPointer(0), inBus.getReadPointer(0) + numSamples, tmpL);
-        std::copy(inBus.getReadPointer(1), inBus.getReadPointer(1) + numSamples, tmpR);
-        engine.process(tmpL, tmpR, numSamples);
         float* out = outBus.getWritePointer(0);
         for (int i = 0; i < numSamples; ++i)
             out[i] = 0.5f * (tmpL[i] + tmpR[i]);
-    } else {
-        // mono -> mono, or silent (disabled) input bus
-        if (inCh >= 1) {
-            const float* in = inBus.getReadPointer(0);
-            std::copy(in, in + numSamples, tmpL);
-            std::copy(in, in + numSamples, tmpR);
-        } else {
-            std::fill(tmpL, tmpL + numSamples, 0.0f);
-            std::fill(tmpR, tmpR + numSamples, 0.0f);
-        }
-        engine.process(tmpL, tmpR, numSamples);
-        if (outCh >= 1)
-            std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
+    } else if (outCh == 1) {
+        // mono -> mono
+        std::copy(tmpL, tmpL + numSamples, outBus.getWritePointer(0));
     }
 }
 
