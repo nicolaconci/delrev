@@ -141,6 +141,15 @@ Restart the DAW and rescan. (Most DAWs also load the bundles unsigned; ad-hoc
 signing avoids Gatekeeper issues. Distributing an AU/VST3 requires signing +
 notarization — not needed for local use.)
 
+## Standalone app and microphone (macOS)
+
+To hear the plugin live (e.g. with the Mac's built-in mic) in the Standalone app:
+
+1. System Settings → Privacy & Security → **Microphone** → enable **StereoDelayHall** (the app asks on first use)
+2. System Settings → Sound → Input: select **Built-in Microphone** and check the input level moves
+3. In the Standalone window: **Audio Settings** (speaker icon, top right) → Output: Built-in Output, Input: Built-in Microphone, tick the input channel checkboxes (In 1 / In 2)
+4. Speak: with Mix ~50% you hear your voice through the delay
+
 ## Running the DSP tests (no JUCE needed, any platform)
 
 ```sh
