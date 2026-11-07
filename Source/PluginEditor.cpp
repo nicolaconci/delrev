@@ -29,7 +29,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"ratioR",     "Ratio",      Colour(0xff4dff88)}, // small, bottom of RIGHT
         {"pitchMixR",  "Mix",        Colour(0xff4dff88)}, // small, bottom of RIGHT
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
-        {"smear",      "Smear|Crystal", Colour(0xffaaaaaa)}, // SMEAR
+        {"smear",      "Smear|Crystal", Colour(0xffaaaaaa)}, // DYNAMICS
         {"swell",      "Swell",      Colour(0xffaaaaaa)},
         {"grit",       "Grit",       Colour(0xffaaaaaa)},
         {"modRate",    "Rate",       Colour(0xffc77dff)}, // MOD
@@ -105,7 +105,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     setupGroup(groupLeft, "LEFT", Colour(0xff4da3ff));
     setupGroup(groupRight, "RIGHT", Colour(0xff4dff88));
     setupGroup(groupMaster, "MASTER", Colour(0xffffa500));
-    setupGroup(groupSmear, "SMEAR", Colour(0xffaaaaaa));
+    setupGroup(groupSmear, "DYNAMICS", Colour(0xffaaaaaa)); // was SMEAR: now holds smear|crystal + swell + grit
     setupGroup(groupMod, "MOD", Colour(0xffc77dff));
     setupGroup(groupRev, "REV", Colour(0xff40e0d0));
     setupGroup(groupWet, "WET", Colour(0xffeeeeee));
@@ -214,7 +214,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     groupMaster.setBounds(master);
     placeKnob(15, singleCell(master));
 
-    // Row 2: SMEAR (3 knobs + On Input) | MOD (Rate, Depth + Vol small) | REV (3) | WET (Wet Gain + 100% Wet)
+    // Row 2: DYNAMICS (3 knobs + On Input) | MOD (Rate, Depth + Vol small) | REV (3) | WET (Wet Gain + 100% Wet)
     auto row2 = area;
     row2.removeFromTop(8);
 

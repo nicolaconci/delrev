@@ -49,7 +49,7 @@ Apple Developer ID + notarization instead.
 ## Parameters
 
 The UI is grouped into colour-coded sections — row 1: `PRE | LEFT | RIGHT |
-MASTER`, row 2: `SMEAR | MOD | REV | WET` (orange / blue / green / grey /
+MASTER`, row 2: `DYNAMICS | MOD | REV | WET` (orange / blue / green / grey /
 purple / teal / white).
 
 | Section | Parameter       | Range             | Default | Notes                                                          |
@@ -64,9 +64,9 @@ purple / teal / white).
 | RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
 | RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
-| SMEAR   | Smear | Crystal | -100..+100 %      | 0 %     | bipolar, applied once to the delay-line input: center off; CCW smear (lowpass); CW crystal (highpass + attack transient + gain compensation) |
-| SMEAR   | Swell           | 0–500 ms          | 0 ms    | volume swell-in per repeat (onset detector, time ramp)         |
-| SMEAR   | On Input (toggle) | on/off          | off     | also apply the swell to the dry input signal                   |
+| DYNAMICS | Smear | Crystal | -100..+100 %      | 0 %     | bipolar, applied once to the delay-line input: center off; CCW smear (lowpass); CW crystal (highpass + attack transient + gain compensation) |
+| DYNAMICS | Swell           | 0–500 ms          | 0 ms    | volume swell-in per repeat (onset detector, time ramp)         |
+| DYNAMICS | On Input (toggle) | on/off          | off     | also apply the swell to the dry input signal                   |
 | MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed on delay time (log scale), anti-phase L/R            |
 | MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
 | REV     | Decay           | 0.2–10 s          | 3 s     | hall decay, RT60-mapped (log scale)                            |
@@ -84,7 +84,7 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
 
 ## v2 features (branch `essentia_v2`)
 
-- **Grit** (0–100 %, box SMEAR): tanh soft-clip saturation on the repeats with a slow RMS
+- **Grit** (0–100 %, box DYNAMICS): tanh soft-clip saturation on the repeats with a slow RMS
   make-up gain — the perceived volume stays constant and only saturation is added (hot
   peaks are clamped, never louder than without grit). The knob range is compressed on
   purpose: 100 % gives the saturation that the raw amount reached at 80 % (compressed range; the RMS make-up keeps the loudness constant).
