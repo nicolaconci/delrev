@@ -144,9 +144,10 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 if (a > fast) fast = a; else fast += (a - fast) * relF;
                 if (a > slow) slow += (a - slow) * upS; else slow += (a - slow) * relS;
                 ++sinceOnset;
-                // marked transient only: fast energy jumps well above slow (3x),
-                // absolute level significant, refractory elapsed, previous swell done
-                if (fast > 5.0f * slow && slow > 0.15f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
+                // marked transient only: fast energy jumps well above the slow
+                // envelope (5x, level-independent since slow tracks the recent
+                // level) + tiny absolute floor against silence; refractory elapsed
+                if (fast > 5.0f * slow && slow > 0.005f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
                     target = 0.0f;
                     sinceOnset = 0;
                 }

@@ -451,6 +451,27 @@ int main() {
         CHECK(wetLate > 0.85f, "swell: repeat reaches full level after the swell");
         CHECK(dryOffEarly > 0.9f, "toggle off: dry input NOT swelled");
         CHECK(dryOnEarly < 0.8f && dryOnLate > 0.85f, "toggle on: dry input swells too");
+
+        // level-independent: a quiet burst (amp 0.05) still triggers the swell
+        {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.swellMs = 100.0f; p.swellOnInput = false;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 1000; i < 9000; ++i) l[i] = 0.05f; // quiet burst
+            e.process(l.data(), r.data(), 30000);
+            float pv2 = 0.0f;
+            peakIndex(l, t + burst + 400, t + burst + S / 2, &pv2);
+            const float qEarly = std::fabs(pv2);
+            peakIndex(l, t + burst + S + 200, t + burst + 3000, &pv2);
+            const float qLate = std::fabs(pv2);
+            std::printf("  swell quiet burst: early %.4f late %.4f\n", (double) qEarly, (double) qLate);
+            CHECK(qEarly < 0.8f * qLate && qLate > 0.04f, "swell triggers also on quiet transients (level-independent)");
+        }
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
