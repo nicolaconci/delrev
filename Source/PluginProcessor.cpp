@@ -30,7 +30,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("toneR", "Tone R", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
     addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
-    addFloat("attack", "Attack", {0.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("ms", 1));
+    addFloat("smear", "Smear", {0.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("%", 1));
 
     NormalisableRange<float> timeRange(20.0f, 2000.0f, 0.1f);
     timeRange.setSkewForCentre(500.0f);
@@ -48,7 +48,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("revMix", "Rev Mix", {0.0f, 100.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
 
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
-    layout.add(std::make_unique<AudioParameterChoice>(ParameterID{"attackCurve", 1}, "Attack Curve",
+    layout.add(std::make_unique<AudioParameterChoice>(ParameterID{"smearCurve", 1}, "Smear Curve",
                                                        StringArray{"Linear", "Log", "Exp"}, 0));
 
     return layout;
@@ -67,8 +67,8 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     toneRParam = apvts.getRawParameterValue("toneR");
     feedbackLParam = apvts.getRawParameterValue("feedbackL");
     feedbackRParam = apvts.getRawParameterValue("feedbackR");
-    attackParam = apvts.getRawParameterValue("attack");
-    attackCurveParam = apvts.getRawParameterValue("attackCurve");
+    smearParam = apvts.getRawParameterValue("smear");
+    smearCurveParam = apvts.getRawParameterValue("smearCurve");
     timeLParam = apvts.getRawParameterValue("timeL");
     timeRParam = apvts.getRawParameterValue("timeR");
     modRateParam = apvts.getRawParameterValue("modRate");
@@ -116,8 +116,8 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.toneR = toneRParam->load() / 100.0f;
     p.feedbackL = feedbackLParam->load() / 100.0f;
     p.feedbackR = feedbackRParam->load() / 100.0f;
-    p.attackMs = attackParam->load();
-    p.attackCurve = (int) attackCurveParam->load();
+    p.smear = smearParam->load() / 100.0f;
+    p.smearCurve = (int) smearCurveParam->load();
     p.timeLms = timeLParam->load();
     p.timeRms = timeRParam->load();
     p.modRateHz = modRateParam->load();

@@ -14,8 +14,8 @@ struct EngineParams {
     float toneR = 1.0f;       // 0..1 lowpass on the right wet
     float feedbackL = 0.35f;  // 0..0.95 recirculation gain, left channel
     float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
-    float attackMs = 0.0f;    // 0..maxAttackMs: fade-in per repeat (amplitude envelope on the wet signal)
-    int attackCurve = 0;      // 0 = linear, 1 = log, 2 = exp shape of the fade-in
+    float smear = 0.0f;       // 0..1 lowpass in the feedback loop (repeat attacks get smeared)
+    int smearCurve = 0;       // 0 = linear, 1 = log, 2 = exp mapping of amount -> cutoff
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
     float modRateHz = 0.8f;   // modulation rate (Hz)
@@ -37,7 +37,6 @@ public:
     static constexpr float maxTimeMs = 2000.0f;
     static constexpr float maxModDepthMs = 30.0f;
     static constexpr float minTimeMs = 5.0f;
-    static constexpr float maxAttackMs = 100.0f;
 
 private:
     struct DelayLine {
@@ -117,12 +116,10 @@ private:
     float targetPreGain = 1.0f, targetMaster = 1.0f;
     float mixL = 0.0f, mixR = 0.0f, toneL = 1.0f, toneR = 1.0f;
     float toneLpL = 0.0f, toneLpR = 0.0f; // tone lowpass state
-    float feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
-    // attack fade-in state: onset envelopes + time ramp on the delay-line input (per channel)
-    float fastEnvL = 0.0f, fastEnvR = 0.0f;
-    float slowEnvL = 0.0f, slowEnvR = 0.0f;
-    float rampL = 1.0f, rampR = 1.0f;
-    int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30; // samples since last detected onset
+    float feedbackL = 0.0f, feedbackR = 0.0f;
+    // smear state: one-pole lowpass in the feedback loop (per channel)
+    float smear = 0.0f;
+    float fbLpL = 0.0f, fbLpR = 0.0f;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

@@ -20,7 +20,7 @@ gets its own reverb tail. Works on any source — guitar, vocals, synths, buses.
 - Full parameter automation + state save/restore (APVTS)
 
 The UI is grouped into colour-coded sections — row 1: `PRE | LEFT | RIGHT |
-MASTER`, row 2: `ATTACK | MOD | REV | WET` (orange / blue / green / grey /
+MASTER`, row 2: `SMEAR | MOD | REV | WET` (orange / blue / green / grey /
 purple / teal).
 
 ## Parameters
@@ -37,8 +37,8 @@ purple / teal).
 | RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
 | RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
-| ATTACK  | Attack          | 0–100 ms          | 0 ms    | fade-in per repeat: pure time ramp on the delay-line input (onset detector), no distortion |
-| ATTACK  | Curve (combo)   | Linear / Log / Exp | Linear | ramp shape: Log = fast start, Exp = slow start                  |
+| SMEAR   | Smear           | 0–100 %           | 0 %     | lowpass in the feedback loop (Strymon Timeline / H9 style): first repeat intact, later repeats smeared so their attack is not heard |
+| SMEAR   | Curve (combo)   | Linear / Log / Exp | Linear | amount → cutoff mapping: Log = stronger early, Exp = only near max |
 | MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                          |
 | MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
 | REV     | Decay           | 0.2–10 s          | 3 s     | hall decay, RT60-mapped (log scale)                            |

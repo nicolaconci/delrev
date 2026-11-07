@@ -22,9 +22,9 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numKnobs];
 
     juce::GroupComponent groupPre, groupLeft, groupRight, groupMaster;
-    juce::GroupComponent groupAttack, groupMod, groupRev, groupWet;
-    juce::ComboBox attackCurveBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> attackCurveAttachment;
+    juce::GroupComponent groupSmear, groupMod, groupRev, groupWet;
+    juce::ComboBox smearCurveBox;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> smearCurveAttachment;
     juce::ToggleButton wetButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
 

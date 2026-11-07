@@ -21,7 +21,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"toneR",      "Tone R",     Colour(0xff4dff88)},
         {"mixR",       "Mix R",      Colour(0xff4dff88)},
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
-        {"attack",     "Attack",     Colour(0xffaaaaaa)}, // ATTACK
+        {"smear",      "Smear",      Colour(0xffaaaaaa)}, // SMEAR
         {"modRate",    "Rate",       Colour(0xffc77dff)}, // MOD
         {"modDepth",   "Depth",      Colour(0xffc77dff)},
         {"revDecay",   "Decay",      Colour(0xff40e0d0)}, // REV
@@ -55,15 +55,15 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, defs[i].id, sliders[i]);
     }
 
-    attackCurveBox.addItem("Linear", 1);
-    attackCurveBox.addItem("Log", 2);
-    attackCurveBox.addItem("Exp", 3);
-    attackCurveBox.setColour(ComboBox::textColourId, Colours::white);
-    attackCurveBox.setColour(ComboBox::backgroundColourId, Colour(0xff2a2a32));
-    attackCurveBox.setColour(ComboBox::outlineColourId, Colour(0xffaaaaaa));
-    attackCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
-    addAndMakeVisible(attackCurveBox);
-    attackCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "attackCurve", attackCurveBox);
+    smearCurveBox.addItem("Linear", 1);
+    smearCurveBox.addItem("Log", 2);
+    smearCurveBox.addItem("Exp", 3);
+    smearCurveBox.setColour(ComboBox::textColourId, Colours::white);
+    smearCurveBox.setColour(ComboBox::backgroundColourId, Colour(0xff2a2a32));
+    smearCurveBox.setColour(ComboBox::outlineColourId, Colour(0xffaaaaaa));
+    smearCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
+    addAndMakeVisible(smearCurveBox);
+    smearCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "smearCurve", smearCurveBox);
 
     auto setupGroup = [](GroupComponent& g, const char* text, Colour c) {
         g.setText(text);
@@ -75,7 +75,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     setupGroup(groupLeft, "LEFT", Colour(0xff4da3ff));
     setupGroup(groupRight, "RIGHT", Colour(0xff4dff88));
     setupGroup(groupMaster, "MASTER", Colour(0xffffa500));
-    setupGroup(groupAttack, "ATTACK", Colour(0xffaaaaaa));
+    setupGroup(groupSmear, "SMEAR", Colour(0xffaaaaaa));
     setupGroup(groupMod, "MOD", Colour(0xffc77dff));
     setupGroup(groupRev, "REV", Colour(0xff40e0d0));
     setupGroup(groupWet, "WET", Colour(0xffeeeeee));
@@ -83,7 +83,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     addAndMakeVisible(groupLeft);
     addAndMakeVisible(groupRight);
     addAndMakeVisible(groupMaster);
-    addAndMakeVisible(groupAttack);
+    addAndMakeVisible(groupSmear);
     addAndMakeVisible(groupMod);
     addAndMakeVisible(groupRev);
     addAndMakeVisible(groupWet);
@@ -146,15 +146,15 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     groupMaster.setBounds(master);
     placeKnob(9, singleCell(master));
 
-    // Row 2: ATTACK | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
+    // Row 2: SMEAR | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
     auto row2 = area;
     row2.removeFromTop(8);
 
-    auto atk = row2.removeFromLeft(170);
-    groupAttack.setBounds(atk);
-    auto atkCell = singleCell(atk);
-    attackCurveBox.setBounds(atkCell.removeFromBottom(22));
-    placeKnob(10, atkCell);
+    auto smr = row2.removeFromLeft(170);
+    groupSmear.setBounds(smr);
+    auto smrCell = singleCell(smr);
+    smearCurveBox.setBounds(smrCell.removeFromBottom(22));
+    placeKnob(10, smrCell);
     row2.removeFromLeft(8);
 
     auto mod = row2.removeFromLeft(220);

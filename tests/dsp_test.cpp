@@ -263,93 +263,69 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
-    // 11) attack: fade-in ramp only on marked transients (burst after silence)
+    // 11) smear: lowpass in the feedback loop - first repeat intact, later repeats smoothed
     {
-        auto run = [&](float attackMs) {
+        auto run = [&](float smear) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.attackMs = attackMs; p.attackCurve = 0;
+            p.smear = smear; p.smearCurve = 0;
             e.setParams(p);
-            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
-            for (int i = 1000; i < 9000; ++i) l[i] = 1.0f; // square burst after silence
-            e.process(l.data(), r.data(), 30000);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
             return l;
         };
         const int t = (int) (0.100 * sr);
-        const int A = (int) (0.050 * sr);
-        const int burst = 1000;
         float pv = 0.0f;
-        auto noAtk = run(0.0f);
-        peakIndex(noAtk, t + burst, t + burst + 500, &pv);
-        const float ref = std::fabs(pv);
-        auto atk = run(50.0f);
-        peakIndex(atk, t + burst + 100, t + burst + A / 2, &pv); // skip detector latency (~20 ms)
-        const float early = std::fabs(pv);
-        peakIndex(atk, t + burst + A + 200, t + burst + 4000, &pv);
-        const float late = std::fabs(pv);
-        std::printf("  attack burst: noAtk early %.3f; @50ms early %.3f late %.3f\n",
-                    (double) ref, (double) early, (double) late);
-        CHECK(ref > 0.9f, "attack=0: transient echo at full level immediately");
-        CHECK(early < 0.75f * ref, "attack: marked transient echo starts faded in");
-        CHECK(late > 0.85f, "attack: echo reaches full level after the ramp");
+        auto clear = run(0.0f);
+        peakIndex(clear, t - 20, t + 20, &pv);
+        const float e1clear = std::fabs(pv);
+        peakIndex(clear, 2 * t - 20, 2 * t + 20, &pv);
+        const float e2clear = std::fabs(pv);
+        auto smr = run(1.0f);
+        peakIndex(smr, t - 20, t + 20, &pv);
+        const float e1smr = std::fabs(pv);
+        peakIndex(smr, 2 * t - 20, 2 * t + 20, &pv);
+        const float e2smr = std::fabs(pv);
+        std::printf("  smear: echo1 clear %.3f smeared %.3f; echo2 clear %.3f smeared %.3f\n",
+                    (double) e1clear, (double) e1smr, (double) e2clear, (double) e2smr);
+        CHECK(e1clear > 0.8f && e1smr > 0.8f, "smear: first repeat keeps its attack");
+        CHECK(e2clear > 0.8f, "smear=0: 2nd repeat full (~0.9)");
+        CHECK(e2smr < 0.15f * e2clear, "smear=100%: 2nd repeat attack heavily smoothed");
     }
 
-    // 11b) attack must not distort sustained tones: after the ramp, gain -> 1
-    {
-        StereoDelayHallEngine e;
-        e.prepare(sr, 512);
-        EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
-        p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-        p.attackMs = 50.0f; p.attackCurve = 0;
-        e.setParams(p);
-        std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
-        for (int i = 0; i < 20000; ++i)
-            l[i] = std::sin(2.0 * 3.14159265 * 1000.0 * i / sr);
-        e.process(l.data(), r.data(), 20000);
-        const int t = (int) (0.100 * sr);
-        const int A = (int) (0.050 * sr);
-        float pv = 0.0f;
-        peakIndex(l, t + A + 200, t + 3 * A, &pv);
-        std::printf("  attack sustain: sine echo peak after ramp %.3f\n", (double) pv);
-        CHECK(std::fabs(pv) > 0.85f, "attack: sustained tone keeps full amplitude after the ramp (no distortion)");
-    }
-
-    // 12) attack curve shapes the ramp on a marked transient: log fast, linear mid, exp slow
+    // 12) smear curve shapes amount -> cutoff: at 50%, exp brightest, log darkest
     {
         auto run = [&](int curve) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.attackMs = 50.0f; p.attackCurve = curve;
+            p.smear = 0.5f; p.smearCurve = curve;
             e.setParams(p);
-            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
-            for (int i = 1000; i < 9000; ++i) l[i] = 1.0f; // square burst after silence
-            e.process(l.data(), r.data(), 30000);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
             return l;
         };
         const int t = (int) (0.100 * sr);
-        const int A = (int) (0.050 * sr);
-        const int burst = 1000;
-        float mid[3], full[3];
+        float a[3] = {0, 0, 0};
+        float pv = 0.0f;
         for (int c = 0; c < 3; ++c) {
             auto v = run(c);
-            mid[c] = v[(size_t) (t + burst + A / 2)];
-            full[c] = v[(size_t) (t + burst + A + 200)];
+            peakIndex(v, 2 * t - 20, 2 * t + 20, &pv);
+            a[c] = std::fabs(pv);
         }
-        std::printf("  attack curves @half: linear %.3f log %.3f exp %.3f; @full: %.3f %.3f %.3f\n",
-                    (double) mid[0], (double) mid[1], (double) mid[2],
-                    (double) full[0], (double) full[1], (double) full[2]);
-        CHECK(mid[0] > 0.35f && mid[0] < 0.62f, "linear ramp ~0.5 at half attack");
-        CHECK(mid[1] > 0.6f && mid[1] < 0.8f, "log ramp faster (~0.7)");
-        CHECK(mid[2] > 0.15f && mid[2] < 0.35f, "exp ramp slower (~0.24)");
-        CHECK(mid[1] > mid[0] && mid[0] > mid[2], "at half attack: log > linear > exp");
-        CHECK(full[0] > 0.9f && full[1] > 0.9f && full[2] > 0.9f, "all curves reach full level after the ramp");
+        std::printf("  smear=0.5 echo2 amp: linear %.3f log %.3f exp %.3f\n",
+                    (double) a[0], (double) a[1], (double) a[2]);
+        CHECK(a[2] > a[0] && a[0] > a[1], "at 50%: exp > linear > log (echo2 amplitude)");
+        CHECK(a[0] > 0.2f && a[0] < 0.4f, "linear ~0.30");
+        CHECK(a[1] > 0.1f && a[1] < 0.2f, "log ~0.15 (darkest)");
+        CHECK(a[2] > 0.5f && a[2] < 0.65f, "exp ~0.55 (brightest)");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,
