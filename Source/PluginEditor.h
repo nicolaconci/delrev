@@ -1,0 +1,37 @@
+#pragma once
+
+#include <juce_audio_processors/juce_audio_processors.h>
+#include "PluginProcessor.h"
+#include "LookAndFeel/StudioLookAndFeel.h"
+
+class StereoDelayHallAudioProcessorEditor : public juce::AudioProcessorEditor {
+public:
+    explicit StereoDelayHallAudioProcessorEditor(StereoDelayHallAudioProcessor&);
+    ~StereoDelayHallAudioProcessorEditor() override;
+
+    void paint(juce::Graphics&) override;
+    void resized() override;
+
+private:
+    juce::AudioProcessorValueTreeState& apvts;
+
+    juce::Label titleLabel;
+    juce::Label taglineLabel;
+
+    static constexpr int numKnobs = 18;
+    juce::Slider sliders[numKnobs];
+    juce::Label labels[numKnobs];
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachments[numKnobs];
+
+    juce::GroupComponent groupPre, groupLeft, groupRight, groupMaster;
+    juce::GroupComponent groupSmear, groupMod, groupRev, groupWet;
+    juce::ToggleButton swellInputButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> swellInputAttachment;
+    juce::Label wetLabel;
+    juce::Label swellInputLabel;
+    juce::ToggleButton wetButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
+    std::unique_ptr<StudioLookAndFeel> studioLookAndFeel;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessorEditor)
+};
