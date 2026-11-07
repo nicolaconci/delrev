@@ -51,6 +51,11 @@ target_compile_definitions(StereoDelayHall PRIVATE
     JUCE_VST3_HOST_CROSS_PLATFORM_UID=1
 )
 
+# silence warnings coming from the bundled Steinberg VST3 SDK headers
+target_compile_options(StereoDelayHall PRIVATE
+    $<$<CXX_COMPILER_ID:AppleClang,Clang>:-Wno-nontrivial-memcall>
+)
+
 target_link_libraries(StereoDelayHall PRIVATE
     juce::juce_audio_utils
     juce::juce_dsp
