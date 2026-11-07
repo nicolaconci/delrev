@@ -16,6 +16,8 @@ struct EngineParams {
     float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
     float smear = 0.0f;       // 0..1 lowpass applied once to the delay-line input (first repeat smeared, repeats inherit it)
     int smearCurve = 0;       // 0 = linear, 1 = log, 2 = exp mapping of amount -> cutoff
+    float swellMs = 0.0f;     // 0..maxSwellMs: volume swell-in (time ramp) per repeat, baked into the line input
+    bool swellOnInput = false; // true: the same swell is also applied to the dry input signal
     float timeLms = 375.0f;   // delay time, left channel (ms)
     float timeRms = 500.0f;   // delay time, right channel (ms)
     float modRateHz = 0.8f;   // modulation rate (Hz)
@@ -37,6 +39,7 @@ public:
     static constexpr float maxTimeMs = 2000.0f;
     static constexpr float maxModDepthMs = 30.0f;
     static constexpr float minTimeMs = 5.0f;
+    static constexpr float maxSwellMs = 500.0f;
 
 private:
     struct DelayLine {
@@ -120,6 +123,12 @@ private:
     // smear state: one-pole lowpass on the delay-line input (per channel)
     float smear = 0.0f;
     float inLpL = 0.0f, inLpR = 0.0f;
+    // swell state: onset detector + time ramp on the line input (per channel)
+    float swell = 0.0f;
+    float fastEnvL = 0.0f, fastEnvR = 0.0f;
+    float slowEnvL = 0.0f, slowEnvR = 0.0f;
+    float rampL = 1.0f, rampR = 1.0f;
+    int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

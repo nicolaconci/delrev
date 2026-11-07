@@ -14,6 +14,10 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
     inLpL = inLpR = 0.0f;
+    fastEnvL = fastEnvR = 0.0f;
+    slowEnvL = slowEnvR = 0.0f;
+    rampL = rampR = 1.0f;
+    onsetTimerL = onsetTimerR = 1 << 30;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -29,6 +33,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     feedbackL = def.feedbackL;
     feedbackR = def.feedbackR;
     smear = def.smear;
+    swell = def.swellMs;
     timeL = def.timeLms;
     timeR = def.timeRms;
     modRate = def.modRateHz;
@@ -51,6 +56,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
     c.smear = std::clamp(c.smear, 0.0f, 1.0f);
     c.smearCurve = std::clamp(c.smearCurve, 0, 2);
+    c.swellMs = std::clamp(c.swellMs, 0.0f, maxSwellMs);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
     c.modRateHz = std::clamp(c.modRateHz, 0.01f, 20.0f);
@@ -70,6 +76,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         feedbackL = c.feedbackL;
         feedbackR = c.feedbackR;
         smear = c.smear;
+        swell = c.swellMs;
         timeL = c.timeLms;
         timeR = c.timeRms;
         modRate = c.modRateHz;
@@ -96,6 +103,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         feedbackL += (target.feedbackL - feedbackL) * smoothCoef;
         feedbackR += (target.feedbackR - feedbackR) * smoothCoef;
         smear += (target.smear - smear) * smoothCoef;
+        swell += (target.swellMs - swell) * smoothCoef;
         timeL += (target.timeLms - timeL) * smoothCoef;
         timeR += (target.timeRms - timeR) * smoothCoef;
         modRate += (target.modRateHz - modRate) * smoothCoef;
@@ -119,6 +127,33 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
+        // swell: volume swell-in per repeat, as a pure time ramp baked into the
+        // line input (onset detector resets the ramp; never follows the waveform
+        // -> no distortion). Toggle swellOnInput applies the same swell to the
+        // dry input signal too.
+        float gL = 1.0f, gR = 1.0f;
+        const int S = (int) std::lround(swell * sr * 0.001f);
+        if (S > 0) {
+            const int refractory = std::max(S, (int) (0.030f * sr)); // >= 30 ms between onsets
+            auto rampUp = [&](float in, float& fast, float& slow, float& ramp, int& sinceOnset) {
+                const float a = std::fabs(in);
+                const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
+                const float upS  = 1.0f - std::exp(-1.0f / (0.020f * sr)); // slow env attack  ~20 ms
+                const float relS = 1.0f - std::exp(-1.0f / (0.400f * sr)); // slow env release ~400 ms
+                if (a > fast) fast = a; else fast += (a - fast) * relF;
+                if (a > slow) slow += (a - slow) * upS; else slow += (a - slow) * relS;
+                ++sinceOnset;
+                if (fast > 2.5f * slow && slow > 0.02f && sinceOnset > refractory) {
+                    ramp = 0.0f;
+                    sinceOnset = 0;
+                }
+                if (ramp < 1.0f) ramp += 1.0f / (float) S; // linear swell over S
+                return ramp;
+            };
+            gL = rampUp(inL, fastEnvL, slowEnvL, rampL, onsetTimerL);
+            gR = rampUp(inR, fastEnvR, slowEnvR, rampR, onsetTimerR);
+        }
+
         // smear: one-pole lowpass applied ONCE to the input entering the delay
         // line. The first repeat is born smeared (its attack is softened) and
         // the later repeats inherit the same shape through the raw feedback —
@@ -140,9 +175,9 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             wInR = inLpR;
         }
 
-        lineL.write(wInL + feedbackL * dL);
+        lineL.write(wInL * gL + feedbackL * dL);
         lineL.advance();
-        lineR.write(wInR + feedbackR * dR);
+        lineR.write(wInR * gR + feedbackR * dR);
         lineR.advance();
 
         float wL = dL, wR = dR;
@@ -168,8 +203,10 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float wetL = wL + revMix * rvL;
         const float wetR = wR + revMix * rvR;
 
-        left[i] = ((1.0f - mixL) * inL + mixL * wetL) * master;
-        right[i] = ((1.0f - mixR) * inR + mixR * wetR) * master;
+        const float dryL = target.swellOnInput ? inL * gL : inL;
+        const float dryR = target.swellOnInput ? inR * gR : inR;
+        left[i] = ((1.0f - mixL) * dryL + mixL * wetL) * master;
+        right[i] = ((1.0f - mixR) * dryR + mixR * wetR) * master;
     }
 }
 
@@ -189,6 +226,11 @@ void StereoDelayHallEngine::reset() {
     feedbackR = target.feedbackR;
     smear = target.smear;
     inLpL = inLpR = 0.0f;
+    swell = target.swellMs;
+    fastEnvL = fastEnvR = 0.0f;
+    slowEnvL = slowEnvR = 0.0f;
+    rampL = rampR = 1.0f;
+    onsetTimerL = onsetTimerR = 1 << 30;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;

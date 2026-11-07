@@ -31,6 +31,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("smear", "Smear", {0.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("%", 1));
+    addFloat("swell", "Swell", {0.0f, 500.0f, 1.0f}, 0.0f, makeAttrs("ms", 0));
 
     NormalisableRange<float> timeRange(20.0f, 2000.0f, 0.1f);
     timeRange.setSkewForCentre(500.0f);
@@ -50,6 +51,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
     layout.add(std::make_unique<AudioParameterChoice>(ParameterID{"smearCurve", 1}, "Smear Curve",
                                                        StringArray{"Linear", "Log", "Exp"}, 0));
+    layout.add(std::make_unique<AudioParameterBool>(ParameterID{"swellInput", 1}, "Swell on Input", false));
 
     return layout;
 }
@@ -69,6 +71,8 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     feedbackRParam = apvts.getRawParameterValue("feedbackR");
     smearParam = apvts.getRawParameterValue("smear");
     smearCurveParam = apvts.getRawParameterValue("smearCurve");
+    swellParam = apvts.getRawParameterValue("swell");
+    swellInputParam = apvts.getRawParameterValue("swellInput");
     timeLParam = apvts.getRawParameterValue("timeL");
     timeRParam = apvts.getRawParameterValue("timeR");
     modRateParam = apvts.getRawParameterValue("modRate");
@@ -118,6 +122,8 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.feedbackR = feedbackRParam->load() / 100.0f;
     p.smear = smearParam->load() / 100.0f;
     p.smearCurve = (int) smearCurveParam->load();
+    p.swellMs = swellParam->load();
+    p.swellOnInput = swellInputParam->load() > 0.5f;
     p.timeLms = timeLParam->load();
     p.timeRms = timeRParam->load();
     p.modRateHz = modRateParam->load();

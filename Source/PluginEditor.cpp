@@ -22,6 +22,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"mixR",       "Mix R",      Colour(0xff4dff88)},
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
         {"smear",      "Smear",      Colour(0xffaaaaaa)}, // SMEAR
+        {"swell",      "Swell",      Colour(0xffaaaaaa)},
         {"modRate",    "Rate",       Colour(0xffc77dff)}, // MOD
         {"modDepth",   "Depth",      Colour(0xffc77dff)},
         {"revDecay",   "Decay",      Colour(0xff40e0d0)}, // REV
@@ -36,7 +37,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
 
     // single-knob sections (PRE, MASTER, ATTACK) show only the coloured group
     // title, not an extra label above the knob
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 9 && i != 10; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 9; };
 
     for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
@@ -64,6 +65,11 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     smearCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
     addAndMakeVisible(smearCurveBox);
     smearCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "smearCurve", smearCurveBox);
+
+    swellInputButton.setButtonText("On Input");
+    swellInputButton.setColour(ToggleButton::textColourId, Colours::white);
+    addAndMakeVisible(swellInputButton);
+    swellInputAttachment = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment>(apvts, "swellInput", swellInputButton);
 
     auto setupGroup = [](GroupComponent& g, const char* text, Colour c) {
         g.setText(text);
@@ -112,7 +118,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         return Rectangle<int>(groupArea.getX() + 4 + index * w, groupArea.getY() + 14,
                               w, groupArea.getHeight() - 18);
     };
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 9 && i != 10; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 9; };
     auto placeKnob = [&](int i, Rectangle<int> cell) {
         if (hasInnerLabel(i))
             labels[i].setBounds(cell.removeFromTop(16));
@@ -150,23 +156,25 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto row2 = area;
     row2.removeFromTop(8);
 
-    auto smr = row2.removeFromLeft(170);
+    auto smr = row2.removeFromLeft(280);
     groupSmear.setBounds(smr);
-    auto smrCell = singleCell(smr);
-    smearCurveBox.setBounds(smrCell.removeFromBottom(22));
-    placeKnob(10, smrCell);
+    auto smrArea = Rectangle<int>(smr.getX() + 4, smr.getY() + 14, smr.getWidth() - 8, smr.getHeight() - 18);
+    smearCurveBox.setBounds(smrArea.removeFromBottom(22));
+    swellInputButton.setBounds(smrArea.removeFromBottom(24).withSizeKeepingCentre(110, 22));
+    for (int i = 0; i < 2; ++i)
+        placeKnob(10 + i, cellOf(smrArea, i, 2));
     row2.removeFromLeft(8);
 
     auto mod = row2.removeFromLeft(220);
     groupMod.setBounds(mod);
     for (int i = 0; i < 2; ++i)
-        placeKnob(11 + i, cellOf(mod, i, 2));
+        placeKnob(12 + i, cellOf(mod, i, 2));
     row2.removeFromLeft(8);
 
     auto rev = row2.removeFromLeft(220);
     groupRev.setBounds(rev);
     for (int i = 0; i < 2; ++i)
-        placeKnob(13 + i, cellOf(rev, i, 2));
+        placeKnob(14 + i, cellOf(rev, i, 2));
     row2.removeFromLeft(8);
 
     auto wet = row2;

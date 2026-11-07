@@ -382,6 +382,46 @@ int main() {
         CHECK(dLow > 0.7f, "tone=0%: 200 Hz still passes (lowpass, not highpass)");
     }
 
+    // 15) swell: volume swell-in per repeat on the wet; toggle applies it to the dry input too
+    {
+        auto run = [&](float swellMs, bool onInput, float mix) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = mix; p.mixR = mix; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.swellMs = swellMs; p.swellOnInput = onInput;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 1000; i < 9000; ++i) l[i] = 1.0f; // burst after silence
+            e.process(l.data(), r.data(), 30000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        const int S = (int) (0.100 * sr); // swell = 100 ms
+        const int burst = 1000;
+        float pv = 0.0f;
+        auto wet = run(100.0f, false, 1.0f);
+        peakIndex(wet, t + burst + 100, t + burst + S / 2, &pv);
+        const float wetEarly = std::fabs(pv);
+        peakIndex(wet, t + burst + S + 200, t + burst + 3000, &pv);
+        const float wetLate = std::fabs(pv);
+        auto dryOff = run(100.0f, false, 0.0f);
+        peakIndex(dryOff, burst + 100, burst + S / 2, &pv);
+        const float dryOffEarly = std::fabs(pv);
+        auto dryOn = run(100.0f, true, 0.0f);
+        peakIndex(dryOn, burst + 100, burst + S / 2, &pv);
+        const float dryOnEarly = std::fabs(pv);
+        peakIndex(dryOn, burst + S + 200, burst + 3000, &pv);
+        const float dryOnLate = std::fabs(pv);
+        std::printf("  swell: wet early %.3f late %.3f | dry off %.3f, on early %.3f late %.3f\n",
+                    (double) wetEarly, (double) wetLate, (double) dryOffEarly, (double) dryOnEarly, (double) dryOnLate);
+        CHECK(wetEarly < 0.75f, "swell: repeat swells in (early part quiet)");
+        CHECK(wetLate > 0.85f, "swell: repeat reaches full level after the swell");
+        CHECK(dryOffEarly > 0.9f, "toggle off: dry input NOT swelled");
+        CHECK(dryOnEarly < 0.75f && dryOnLate > 0.85f, "toggle on: dry input swells too");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }
