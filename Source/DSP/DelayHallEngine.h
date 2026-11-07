@@ -122,6 +122,7 @@ private:
     float fastEnvL = 0.0f, fastEnvR = 0.0f;
     float slowEnvL = 0.0f, slowEnvR = 0.0f;
     float rampL = 1.0f, rampR = 1.0f;
+    int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30; // samples since last detected onset
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

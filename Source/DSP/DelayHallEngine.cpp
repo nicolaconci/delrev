@@ -16,6 +16,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     fastEnvL = fastEnvR = 0.0f;
     slowEnvL = slowEnvR = 0.0f;
     rampL = rampR = 1.0f;
+    onsetTimerL = onsetTimerR = 1 << 30;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -34,6 +35,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     fastEnvL = fastEnvR = 0.0f;
     slowEnvL = slowEnvR = 0.0f;
     rampL = rampR = 1.0f;
+    onsetTimerL = onsetTimerR = 1 << 30;
     timeL = def.timeLms;
     timeR = def.timeRms;
     modRate = def.modRateHz;
@@ -132,19 +134,28 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         float gL = 1.0f, gR = 1.0f;
         const int A = (int) std::lround(attack * sr * 0.001f);
         if (A > 0) {
-            auto rampUp = [&](float in, float& fast, float& slow, float& ramp) {
+            // Pro-Tools-style marked-transient detection: short-term envelope
+            // must jump well above the long-term one (2.5x), with an absolute
+            // level threshold and a refractory period, so ordinary waveform
+            // peaks during a sustained note never retrigger the ramp
+            const int refractory = std::max(A, (int) (0.030f * sr)); // >= 30 ms between onsets
+            auto rampUp = [&](float in, float& fast, float& slow, float& ramp, int& sinceOnset) {
                 const float a = std::fabs(in);
                 const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
-                const float upS  = 1.0f - std::exp(-1.0f / (0.010f * sr)); // slow env attack  ~10 ms
-                const float relS = 1.0f - std::exp(-1.0f / (0.500f * sr)); // slow env release ~500 ms
+                const float upS  = 1.0f - std::exp(-1.0f / (0.020f * sr)); // slow env attack  ~20 ms
+                const float relS = 1.0f - std::exp(-1.0f / (0.400f * sr)); // slow env release ~400 ms
                 if (a > fast) fast = a; else fast += (a - fast) * relF;
                 if (a > slow) slow += (a - slow) * upS; else slow += (a - slow) * relS;
-                if (fast > 1.2f * slow && slow > 1e-3f && ramp >= 1.0f) ramp = 0.0f; // onset
-                if (ramp < 1.0f) ramp += 1.0f / (float) A;                             // linear ramp over A
+                ++sinceOnset;
+                if (fast > 2.5f * slow && slow > 0.02f && sinceOnset > refractory) {
+                    ramp = 0.0f;
+                    sinceOnset = 0;
+                }
+                if (ramp < 1.0f) ramp += 1.0f / (float) A; // linear ramp over A
                 return ramp;
             };
-            gL = rampUp(inL, fastEnvL, slowEnvL, rampL);
-            gR = rampUp(inR, fastEnvR, slowEnvR, rampR);
+            gL = rampUp(inL, fastEnvL, slowEnvL, rampL, onsetTimerL);
+            gR = rampUp(inR, fastEnvR, slowEnvR, rampR, onsetTimerR);
             switch (target.attackCurve) {
                 case 1: gL = std::pow(gL, 0.5f); gR = std::pow(gR, 0.5f); break; // log: fast start
                 case 2: gL = std::pow(gL, 2.0f); gR = std::pow(gR, 2.0f); break; // exp: slow start
@@ -205,6 +216,7 @@ void StereoDelayHallEngine::reset() {
     fastEnvL = fastEnvR = 0.0f;
     slowEnvL = slowEnvR = 0.0f;
     rampL = rampR = 1.0f;
+    onsetTimerL = onsetTimerR = 1 << 30;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;
