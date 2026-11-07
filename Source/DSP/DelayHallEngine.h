@@ -126,7 +126,7 @@ private:
     // swell state: onset detector + time ramp on the line input (per channel)
     float swell = 0.0f;
     float fastEnvL = 0.0f, fastEnvR = 0.0f;
-    float slowEnvL = 0.0f, slowEnvR = 0.0f;
+    float refEnvL = 0.0f, refEnvR = 0.0f;
     float rampL = 1.0f, rampR = 1.0f;
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;

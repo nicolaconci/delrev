@@ -472,6 +472,29 @@ int main() {
             std::printf("  swell quiet burst: early %.4f late %.4f\n", (double) qEarly, (double) qLate);
             CHECK(qEarly < 0.8f * qLate && qLate > 0.04f, "swell triggers also on quiet transients (level-independent)");
         }
+
+        // two bursts 300 ms apart (continuous playing): the second onset must also swell
+        {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.swellMs = 100.0f; p.swellOnInput = false;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 1000; i < 3000; ++i) l[i] = 1.0f;
+            for (int i = 4300; i < 11000; ++i) l[i] = 1.0f; // second burst, longer so the swell completes
+            e.process(l.data(), r.data(), 30000);
+            float pv2 = 0.0f;
+            // echo of the second burst starts at t+4300
+            peakIndex(l, t + 5200, t + 5800, &pv2);
+            const float b2Early = std::fabs(pv2);
+            peakIndex(l, t + 9700, t + 10900, &pv2);
+            const float b2Late = std::fabs(pv2);
+            std::printf("  swell 2nd burst: early %.3f late %.3f\n", (double) b2Early, (double) b2Late);
+            CHECK(b2Early < 0.8f * b2Late, "swell fires again on the next note (continuous playing)");
+        }
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

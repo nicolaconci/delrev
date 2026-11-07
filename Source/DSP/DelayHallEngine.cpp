@@ -16,7 +16,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     inLpL = inLpR = 0.0f;
     inPrevL = inPrevR = 0.0f;
     fastEnvL = fastEnvR = 0.0f;
-    slowEnvL = slowEnvR = 0.0f;
+    refEnvL = refEnvR = 0.0f;
     rampL = rampR = 1.0f;
     swellTargetL = swellTargetR = 1.0f;
     onsetTimerL = onsetTimerR = 1 << 30;
@@ -135,19 +135,18 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         float gL = 1.0f, gR = 1.0f;
         const int S = (int) std::lround(swell * sr * 0.001f);
         if (S > 0) {
-            const int refractory = std::max(S, (int) (0.200f * sr)); // >= 200 ms between onsets
-            auto rampUp = [&](float in, float& fast, float& slow, float& ramp, float& tgt, int& sinceOnset) {
+            const int refractory = (int) (0.050f * sr); // 50 ms between onsets (ramp>=1 guard prevents retrigger mid-swell)
+            auto rampUp = [&](float in, float& fast, float& ref, float& ramp, float& tgt, int& sinceOnset) {
                 const float a = std::fabs(in);
                 const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
-                const float upS  = 1.0f - std::exp(-1.0f / (0.020f * sr)); // slow env attack  ~20 ms
-                const float relS = 1.0f - std::exp(-1.0f / (0.400f * sr)); // slow env release ~400 ms
+                const float tauR = 1.0f - std::exp(-1.0f / (0.015f * sr)); // ref env attack+release ~15 ms (lags behind fast)
                 if (a > fast) fast = a; else fast += (a - fast) * relF;
-                if (a > slow) slow += (a - slow) * upS; else slow += (a - slow) * relS;
+                if (a > ref) ref += (a - ref) * tauR; else ref += (a - ref) * tauR;
                 ++sinceOnset;
-                // marked transient only: fast energy jumps well above the slow
-                // envelope (5x, level-independent since slow tracks the recent
-                // level) + tiny absolute floor against silence; refractory elapsed
-                if (fast > 5.0f * slow && slow > 0.005f && sinceOnset > refractory && ramp >= 1.0f && tgt > 0.0f) {
+                // onset: fast envelope jumps well above its own recent reference
+                // (2.5x) - level-independent and works even in continuous playing;
+                // tiny absolute floor against silence; refractory elapsed
+                if (fast > 2.5f * ref && fast > 0.005f && sinceOnset > refractory && tgt > 0.0f) {
                     tgt = 0.0f;
                     sinceOnset = 0;
                 }
@@ -159,8 +158,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 }
                 return ramp;
             };
-            gL = rampUp(inL, fastEnvL, slowEnvL, rampL, swellTargetL, onsetTimerL);
-            gR = rampUp(inR, fastEnvR, slowEnvR, rampR, swellTargetR, onsetTimerR);
+            gL = rampUp(inL, fastEnvL, refEnvL, rampL, swellTargetL, onsetTimerL);
+            gR = rampUp(inR, fastEnvR, refEnvR, rampR, swellTargetR, onsetTimerR);
         }
 
         // smear | crystal: bipolar filter applied ONCE to the input entering the
@@ -250,7 +249,7 @@ void StereoDelayHallEngine::reset() {
     inPrevL = inPrevR = 0.0f;
     swell = target.swellMs;
     fastEnvL = fastEnvR = 0.0f;
-    slowEnvL = slowEnvR = 0.0f;
+    refEnvL = refEnvR = 0.0f;
     rampL = rampR = 1.0f;
     swellTargetL = swellTargetR = 1.0f;
     onsetTimerL = onsetTimerR = 1 << 30;
