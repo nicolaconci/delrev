@@ -147,16 +147,16 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
         std::copy(inBus.getReadPointer(0), inBus.getReadPointer(0) + numSamples, tmpL);
         std::copy(inBus.getReadPointer(1), inBus.getReadPointer(1) + numSamples, tmpR);
         // Some hosts upmix a mono track to a stereo bus by sending the signal on
-        // the left channel only. If the right input is exactly silent (and left
-        // is not), treat it as mono and duplicate, so the plugin widens correctly
-        // when inserted on a mono channel.
+        // the left channel only (right may carry denormals/tiny noise, not exact
+        // zero). If the right input peak is negligible vs the left, treat it as
+        // mono and duplicate, so the plugin widens correctly on a mono insert.
         if (outCh >= 2) {
-            bool rightSilent = true, leftHasSignal = false;
+            float peakL = 0.0f, peakR = 0.0f;
             for (int i = 0; i < numSamples; ++i) {
-                if (tmpR[i] != 0.0f) rightSilent = false;
-                if (tmpL[i] != 0.0f) leftHasSignal = true;
+                peakL = std::max(peakL, std::fabs(tmpL[i]));
+                peakR = std::max(peakR, std::fabs(tmpR[i]));
             }
-            if (rightSilent && leftHasSignal)
+            if (peakL > 1e-5f && peakR < 0.001f * peakL)
                 std::copy(tmpL, tmpL + numSamples, tmpR);
         }
     } else if (inCh == 1) {
