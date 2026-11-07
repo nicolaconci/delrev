@@ -13,7 +13,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
-    envL = envR = 0.0f;
+    peakEnvL = peakEnvR = 0.0f;
+    atkEnvL = atkEnvR = 0.0f;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -26,8 +27,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     feedbackL = def.feedbackL;
     feedbackR = def.feedbackR;
     attack = def.attackMs;
-    envL = 0.0f;
-    envR = 0.0f;
+    peakEnvL = peakEnvR = 0.0f;
+    atkEnvL = atkEnvR = 0.0f;
     timeL = def.timeLms;
     timeR = def.timeRms;
     modRate = def.modRateHz;
@@ -118,25 +119,30 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         lineR.write(inR + feedbackR * dR);
         lineR.advance();
 
-        // attack: amplitude fade-in per repeat on the wet signal (envelope
-        // follower, NOT a lowpass -> the body of the repeat is preserved).
-        // The envelope releases between repeats, so each repeat fades in
-        // independently; curve shapes the ramp (log = fast start, exp = slow)
+        // attack: amplitude fade-in per repeat on the wet signal, using TWO
+        // smoothed envelopes (peak detector + attack ramp) so the gain never
+        // wobbles at the waveform frequency -> no distortion / no high-pass
+        // coloration; the body of the repeat is preserved (gain -> 1 after A)
         float wL = dL, wR = dR;
         const int A = (int) std::lround(attack * sr * 0.001f);
         if (A > 0) {
-            const float alphaR = 1.0f - std::exp(-1.0f / (0.010f * sr)); // ~10 ms release
-            const float peakL = std::fabs(dL);
-            const float peakR = std::fabs(dR);
-            if (peakL > envL) envL += peakL / (float) A;           // linear rise, full after A samples
-            else              envL += (peakL - envL) * alphaR;    // release
-            if (peakR > envR) envR += peakR / (float) A;
-            else              envR += (peakR - envR) * alphaR;
-            float gL = std::clamp(envL / std::max(peakL, 1e-4f), 0.0f, 1.0f);
-            float gR = std::clamp(envR / std::max(peakR, 1e-4f), 0.0f, 1.0f);
+            const float relPeak = 1.0f - std::exp(-1.0f / (0.050f * sr)); // peak env release ~50 ms
+            const float relAtk  = 1.0f - std::exp(-1.0f / (0.010f * sr)); // attack env release ~10 ms
+            const float pkL = std::fabs(dL);
+            const float pkR = std::fabs(dR);
+            // peak detector: instant attack, slow release -> tracks the echo envelope
+            if (pkL > peakEnvL) peakEnvL = pkL; else peakEnvL += (pkL - peakEnvL) * relPeak;
+            if (pkR > peakEnvR) peakEnvR = pkR; else peakEnvR += (pkR - peakEnvR) * relPeak;
+            // attack ramp: linear rise over A samples, fast release
+            if (peakEnvL > atkEnvL) atkEnvL += peakEnvL / (float) A; // linear rise, reaches peak after A samples
+            else                    atkEnvL += (peakEnvL - atkEnvL) * relAtk;
+            if (peakEnvR > atkEnvR) atkEnvR += peakEnvR / (float) A;
+            else                    atkEnvR += (peakEnvR - atkEnvR) * relAtk;
+            float gL = std::clamp(atkEnvL / std::max(peakEnvL, 1e-4f), 0.0f, 1.0f);
+            float gR = std::clamp(atkEnvR / std::max(peakEnvR, 1e-4f), 0.0f, 1.0f);
             switch (target.attackCurve) {
-                case 1: gL = std::pow(gL, 0.5f); gR = std::pow(gR, 0.5f); break; // log
-                case 2: gL = std::pow(gL, 2.0f); gR = std::pow(gR, 2.0f); break; // exp
+                case 1: gL = std::pow(gL, 0.5f); gR = std::pow(gR, 0.5f); break; // log: fast start
+                case 2: gL = std::pow(gL, 2.0f); gR = std::pow(gR, 2.0f); break; // exp: slow start
                 default: break;                                                 // linear
             }
             wL = dL * gL;
@@ -166,8 +172,8 @@ void StereoDelayHallEngine::reset() {
     feedbackL = target.feedbackL;
     feedbackR = target.feedbackR;
     attack = target.attackMs;
-    envL = 0.0f;
-    envR = 0.0f;
+    peakEnvL = peakEnvR = 0.0f;
+    atkEnvL = atkEnvR = 0.0f;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;

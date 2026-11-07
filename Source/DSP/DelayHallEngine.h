@@ -114,8 +114,9 @@ private:
     float preGain = 1.0f, master = 1.0f; // smoothed linear gains
     float targetPreGain = 1.0f, targetMaster = 1.0f;
     float mixL = 0.0f, mixR = 0.0f, feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
-    // attack fade-in state: amplitude envelope follower on the wet signal (per channel)
-    float envL = 0.0f, envR = 0.0f;
+    // attack fade-in state: peak envelope + attack ramp on the wet signal (per channel)
+    float peakEnvL = 0.0f, peakEnvR = 0.0f;
+    float atkEnvL = 0.0f, atkEnvR = 0.0f;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;

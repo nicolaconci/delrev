@@ -294,6 +294,27 @@ int main() {
         CHECK(v2 > 1.0f, "later repeats not annihilated (raw feedback)");
     }
 
+    // 11b) attack must not distort sustained tones: after the ramp, gain -> 1
+    {
+        StereoDelayHallEngine e;
+        e.prepare(sr, 512);
+        EngineParams p;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+        p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+        p.attackMs = 50.0f; p.attackCurve = 0;
+        e.setParams(p);
+        std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+        for (int i = 0; i < 20000; ++i)
+            l[i] = std::sin(2.0 * 3.14159265 * 1000.0 * i / sr);
+        e.process(l.data(), r.data(), 20000);
+        const int t = (int) (0.100 * sr);
+        const int A = (int) (0.050 * sr);
+        float pv = 0.0f;
+        peakIndex(l, t + A + 200, t + 3 * A, &pv);
+        std::printf("  attack sustain: sine echo peak after ramp %.3f\n", (double) pv);
+        CHECK(std::fabs(pv) > 0.85f, "attack: sustained tone keeps full amplitude after the ramp (no distortion)");
+    }
+
     // 12) attack curve shapes the fade-in ramp (step input): log fast, linear mid, exp slow
     {
         auto run = [&](int curve) {
