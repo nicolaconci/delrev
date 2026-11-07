@@ -134,7 +134,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         float gL = 1.0f, gR = 1.0f;
         const int S = (int) std::lround(swell * sr * 0.001f);
         if (S > 0) {
-            const int refractory = std::max(S, (int) (0.050f * sr)); // >= 50 ms between onsets
+            const int refractory = std::max(S, (int) (0.100f * sr)); // >= 100 ms between onsets
             auto rampUp = [&](float in, float& fast, float& slow, float& ramp, float& target, int& sinceOnset) {
                 const float a = std::fabs(in);
                 const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
@@ -145,12 +145,12 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 ++sinceOnset;
                 // marked transient only: fast energy jumps well above slow (3x),
                 // absolute level significant, refractory elapsed, previous swell done
-                if (fast > 3.0f * slow && slow > 0.05f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
+                if (fast > 3.5f * slow && slow > 0.08f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
                     target = 0.0f;
                     sinceOnset = 0;
                 }
                 if (target == 0.0f) {
-                    ramp -= 1.0f / (0.005f * sr); // click-free reset: 5 ms fade-out
+                    ramp -= 1.0f / (0.010f * sr); // click-free reset: 10 ms fade-out
                     if (ramp <= 0.0f) { ramp = 0.0f; target = 1.0f; }
                 } else if (ramp < 1.0f) {
                     ramp += 1.0f / (float) S;     // linear swell-in over S
@@ -176,12 +176,14 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             wInL = inLpL;
             wInR = inLpR;
         } else if (smear > 0.01f) {
-            const float fc = 800.0f * std::pow(10.0f, smear);            // 800 Hz .. 8 kHz
+            // crystal: blend toward highpass, cutoff capped at 2.5 kHz so the
+            // repeat keeps its body (at 100% it is a pure HP at 2.5 kHz, not silent)
+            const float fc = 400.0f * std::pow(6.25f, smear);            // 400 Hz .. 2.5 kHz
             const float a = 1.0f - std::exp(-6.2831853f * fc / sr);
             inLpL += a * (inL - inLpL);
             inLpR += a * (inR - inLpR);
-            wInL = inL - inLpL; // highpass = input minus its lowpass
-            wInR = inR - inLpR;
+            wInL = inL - smear * inLpL;
+            wInR = inR - smear * inLpR;
         }
 
         lineL.write(wInL * gL + feedbackL * dL);

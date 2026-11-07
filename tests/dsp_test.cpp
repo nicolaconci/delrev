@@ -297,7 +297,7 @@ int main() {
         CHECK(std::fabs(e2smr / e1smr - 0.9f) < 0.1f, "no compounding: echo2/echo1 ratio stays = feedback");
     }
 
-    // 12) crystal (smear > 0): highpass on the line input - highs pass, lows cut
+    // 12) crystal (smear > 0): blend toward highpass on the line input, capped at 2.5 kHz
     {
         auto run = [&](float freq, float smear) {
             StereoDelayHallEngine e;
@@ -315,15 +315,23 @@ int main() {
         };
         const int t = (int) (0.100 * sr);
         float pv = 0.0f;
-        auto hi = run(8000.0f, 0.5f);   // 8 kHz, crystal halfway (fc ~2.5 kHz)
-        peakIndex(hi, t + 500, t + 3000, &pv);
-        const float a8 = std::fabs(pv);
-        auto lo = run(300.0f, 0.5f);    // 300 Hz, same crystal setting
-        peakIndex(lo, t + 500, t + 3000, &pv);
-        const float a300 = std::fabs(pv);
-        std::printf("  crystal @+50%%: 8kHz echo %.3f, 300Hz echo %.3f\n", (double) a8, (double) a300);
-        CHECK(a8 > 0.5f, "crystal: 8 kHz passes (bright shimmer)");
-        CHECK(a300 < 0.25f * a8, "crystal: 300 Hz cut (highpass)");
+        auto hiClear = run(8000.0f, 0.0f);
+        peakIndex(hiClear, t + 500, t + 3000, &pv);
+        const float a8c = std::fabs(pv);
+        auto hiX = run(8000.0f, 1.0f);
+        peakIndex(hiX, t + 500, t + 3000, &pv);
+        const float a8x = std::fabs(pv);
+        auto loClear = run(500.0f, 0.0f);
+        peakIndex(loClear, t + 500, t + 3000, &pv);
+        const float a5c = std::fabs(pv);
+        auto loX = run(500.0f, 1.0f);
+        peakIndex(loX, t + 500, t + 3000, &pv);
+        const float a5x = std::fabs(pv);
+        std::printf("  crystal @+100%%: 8kHz %.3f (clear %.3f), 500Hz %.3f (clear %.3f)\n",
+                    (double) a8x, (double) a8c, (double) a5x, (double) a5c);
+        CHECK(a8x > 0.7f * a8c, "crystal keeps 8 kHz (bright shimmer)");
+        CHECK(a5x < 0.4f * a5c, "crystal cuts 500 Hz (highpass)");
+        CHECK(a5x > 0.03f, "crystal at 100% does NOT silence the repeat");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,

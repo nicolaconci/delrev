@@ -37,7 +37,7 @@ purple / teal).
 | RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
 | RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
-| SMEAR   | Smear | Crystal | -100..+100 %      | 0 %     | bipolar, applied once to the delay-line input: center = off; CCW = smear (lowpass, log curve, acts early); CW = crystal (highpass, bright shimmer). First repeat affected, later repeats inherit it — no compounding |
+| SMEAR   | Smear | Crystal | -100..+100 %      | 0 %     | bipolar, applied once to the delay-line input: center = off; CCW = smear (lowpass, log curve, acts early); CW = crystal (blend toward highpass, capped at 2.5 kHz so the repeat is never silenced). First repeat affected, later repeats inherit it — no compounding |
 | SMEAR   | Swell           | 0–500 ms          | 0 ms    | volume swell-in per repeat (time ramp on the delay-line input)  |
 | SMEAR   | On Input (toggle) | on/off          | off     | also apply the swell to the dry input signal, not just the repeats |
 | MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                          |
