@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
+#include <map>
+#include <vector>
 
 using namespace juce;
 
@@ -55,6 +57,44 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
 
     return layout;
 }
+
+namespace {
+struct FactoryPreset { const char* name; std::map<juce::String, float> values; };
+
+const std::vector<FactoryPreset>& factoryPresets() {
+    static const std::vector<FactoryPreset> presets = {
+        { "Init", {} },
+        { "Double Rhythm", {
+            {"preGain", 0.0f}, {"master", 0.0f},
+            {"timeL", 80.0f}, {"feedbackL", 5.0f}, {"toneL", 48.0f}, {"mixL", 0.0f},
+            {"timeR", 30.0f}, {"feedbackR", 5.0f}, {"toneR", 74.0f}, {"mixR", 100.0f},
+            {"smear", 11.0f}, {"swell", 0.0f}, {"swellInput", 0.0f},
+            {"modRate", 0.05f}, {"modDepth", 21.0f},
+            {"revDecay", 6.0f}, {"revMix", 0.0f}, {"revWidth", 150.0f},
+            {"wetGain", 0.0f}, {"wet100", 0.0f},
+        }},
+        { "Ambient", {
+            {"preGain", 0.0f}, {"master", 0.0f},
+            {"timeL", 220.0f}, {"feedbackL", 19.0f}, {"toneL", 36.0f}, {"mixL", 36.0f},
+            {"timeR", 300.0f}, {"feedbackR", 17.0f}, {"toneR", 55.0f}, {"mixR", 34.0f},
+            {"smear", -49.0f}, {"swell", 0.0f}, {"swellInput", 0.0f},
+            {"modRate", 0.05f}, {"modDepth", 5.0f},
+            {"revDecay", 5.0f}, {"revMix", 35.0f}, {"revWidth", 150.0f},
+            {"wetGain", 0.0f}, {"wet100", 0.0f},
+        }},
+        { "Clean Wide", {
+            {"preGain", 0.0f}, {"master", 0.0f},
+            {"timeL", 280.0f}, {"feedbackL", 33.0f}, {"toneL", 48.0f}, {"mixL", 39.0f},
+            {"timeR", 380.0f}, {"feedbackR", 32.0f}, {"toneR", 48.0f}, {"mixR", 41.0f},
+            {"smear", 33.0f}, {"swell", 205.0f}, {"swellInput", 0.0f},
+            {"modRate", 0.05f}, {"modDepth", 21.0f},
+            {"revDecay", 6.0f}, {"revMix", 60.0f}, {"revWidth", 150.0f},
+            {"wetGain", 0.0f}, {"wet100", 0.0f},
+        }},
+    };
+    return presets;
+}
+} // namespace
 
 StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     : AudioProcessor(BusesProperties()
@@ -191,6 +231,43 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
 AudioProcessorEditor* StereoDelayHallAudioProcessor::createEditor() {
     return new StereoDelayHallAudioProcessorEditor(*this);
 }
+
+int StereoDelayHallAudioProcessor::getNumPrograms() {
+    return (int) factoryPresets().size();
+}
+
+int StereoDelayHallAudioProcessor::getCurrentProgram() {
+    return currentProgram;
+}
+
+void StereoDelayHallAudioProcessor::setCurrentProgram(int index) {
+    const auto& presets = factoryPresets();
+    if (index < 0 || index >= (int) presets.size())
+        return;
+    currentProgram = index;
+    const auto& preset = presets[(size_t) index];
+    static const char* ids[] = {
+        "preGain", "master", "mixL", "toneL", "mixR", "toneR", "feedbackL", "feedbackR",
+        "smear", "swell", "swellInput", "timeL", "timeR", "modRate", "modDepth",
+        "revDecay", "revMix", "revWidth", "wetGain", "wet100",
+    };
+    for (const char* id : ids) {
+        auto* p = apvts.getParameter(id);
+        if (p == nullptr)
+            continue;
+        if (index == 0)
+            p->setValueNotifyingHost(p->getDefaultValue()); // Init = defaults
+        else if (auto it = preset.values.find(id); it != preset.values.end())
+            p->setValueNotifyingHost(p->convertTo0to1(it->second));
+    }
+}
+
+const String StereoDelayHallAudioProcessor::getProgramName(int index) {
+    const auto& presets = factoryPresets();
+    return (index >= 0 && index < (int) presets.size()) ? String(presets[(size_t) index].name) : String();
+}
+
+void StereoDelayHallAudioProcessor::changeProgramName(int, const String&) {}
 
 double StereoDelayHallAudioProcessor::getTailLengthSeconds() const {
     return 2.0 + 10.0;

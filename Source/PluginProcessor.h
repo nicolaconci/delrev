@@ -21,10 +21,10 @@ public:
     bool producesMidi() const override { return false; }
     double getTailLengthSeconds() const override;
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
+    int getNumPrograms() override;
+    int getCurrentProgram() override;
+    void setCurrentProgram(int) override;
+    const juce::String getProgramName(int) override;
     void changeProgramName(int, const juce::String&) override {}
 
     void getStateInformation(juce::MemoryBlock& destData) override;
@@ -37,6 +37,7 @@ private:
 
     juce::AudioProcessorValueTreeState apvts;
     dsp::StereoDelayHallEngine engine;
+    int currentProgram = 0;
     juce::AudioBuffer<float> monoScratch;
 
     std::atomic<float>* preGainParam = nullptr;

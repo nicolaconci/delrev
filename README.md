@@ -75,6 +75,13 @@ purple / teal / white).
 | WET     | Wet Gain        | -12..+12 dB       | 0 dB    | gain on the wet path only — raise on aux buses at 100% wet     |
 | WET     | 100% Wet (button) | on/off          | off     | forces Mix L/R to 100% — aux bus/send (wet-only), knobs untouched |
 
+## Factory presets
+
+Available in the DAW's program/preset menu: **Init** (defaults), **Double Rhythm**
+(short offset echoes L 80 ms / R 30 ms, right fully wet), **Ambient** (longer
+L 220 / R 300 ms, smear −49, rev mix 35%), **Clean Wide** (L 280 / R 380 ms,
+swell 205 ms, crystal +33, rev mix 60%, width 150%).
+
 ## Bus layouts
 
 stereo→stereo, **mono→stereo** (mono insert widens via independent L/R times),
