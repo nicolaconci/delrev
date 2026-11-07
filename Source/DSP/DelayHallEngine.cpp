@@ -135,7 +135,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         float gL = 1.0f, gR = 1.0f;
         const int S = (int) std::lround(swell * sr * 0.001f);
         if (S > 0) {
-            const int refractory = (int) (0.050f * sr); // 50 ms between onsets (ramp>=1 guard prevents retrigger mid-swell)
+            const int refractory = (int) (0.060f * sr); // 60 ms between onsets
             auto rampUp = [&](float in, float& fast, float& ref, float& ramp, float& tgt, int& sinceOnset) {
                 const float a = std::fabs(in);
                 const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
@@ -146,13 +146,13 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 // onset: fast envelope jumps well above its own recent reference
                 // (2.5x) - level-independent and works even in continuous playing;
                 // tiny absolute floor against silence; refractory elapsed
-                if (fast > 2.5f * ref && fast > 0.005f && sinceOnset > refractory && tgt > 0.0f) {
+                if (fast > 4.0f * ref && fast > 0.005f && sinceOnset > refractory && tgt > 0.0f) {
                     tgt = 0.0f;
                     sinceOnset = 0;
                 }
                 if (tgt == 0.0f) {
-                    ramp -= 1.0f / (0.020f * sr); // smooth reset: 20 ms fade-out down to 0 (no hard cut, no click)
-                    if (ramp <= 0.0f) { ramp = 0.0f; tgt = 1.0f; }
+                    ramp -= 1.0f / (0.020f * sr); // smooth reset: 20 ms fade-out down to 0.3 (no hard cut, no click)
+                    if (ramp <= 0.3f) { ramp = 0.3f; tgt = 1.0f; } // partial dip (0.3), not a hard cut
                 } else if (ramp < 1.0f) {
                     ramp += 1.0f / (float) S;     // linear swell-in over S
                 }
