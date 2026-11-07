@@ -101,17 +101,19 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
     ≈ `ratio × Time L/R` (`2:1` → about double the time)
   - **Pitch Mix L/R** (level, default 50 %, 0 = muted), applied AFTER Mix L/R, so the pitch
     lines stay audible independently of the dry/wet mix
-  The line is gated at the transient and held while playing, with a 300 ms release. The
-  pitch line **feeds the hall reverb too** (scaled by Pitch Mix — so the pitch gets reverb
-  tails; at Pitch Mix 0 it leaves no trace in the reverb), but skips Tone/Grit, which act
-  on the main repeats only; main Time L/R stays independent.
+  The line is gated at the transient and held while playing, with a 300 ms release.
+  **Pitch Mix gates the pitch line completely**: at 0 the output is identical to bypass
+  (no pitch dry, no pitch in the reverb). The pitch line is post-mix only and does NOT
+  feed the shared hall reverb (its tail would keep ringing for the whole decay even at
+  Pitch Mix 0); it also skips Tone/Grit, which act on the main repeats only; main
+  Time L/R stays independent.
 - All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
   show the ratio text (`1:2`, `1:1`, `2:1`, …).
 
 v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·pitchLine·wetGain) · master`,
-where `wet = (grit(w) + revMix·tail) · wetGain`, the reverb is fed by `w + pitchMix·pitchLine`
-(so the pitch gets hall tails), and the pitch line is the transient-captured, transposed,
-held (looped) snippet echoed at ≈ `ratio × Time`.
+where `wet = (grit(w) + revMix·tail) · wetGain` (reverb fed by the main repeats only) and
+the pitch line is the transient-captured, transposed, held (looped) snippet echoed at
+≈ `ratio × Time`, fully gated by Pitch Mix.
 
 ## Bus layouts
 

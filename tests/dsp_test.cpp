@@ -768,7 +768,9 @@ int main() {
         CHECK(eLate < 1e-3, "capture-hold: fades out long after (gate release)");
     }
 
-    // 23) the pitch line also feeds the hall reverb (tails on the pitch), scaled by Pitch Mix
+    // 23) Pitch Mix gates the pitch line completely: at pitchMix=0 the output is identical to
+    //     pitch bypass (no pitch dry AND no pitch in the reverb tail); at pitchMix>0 the pitch
+    //     echo is present post-mix, but it does NOT feed the shared reverb
     {
         auto run = [&](float pitchSt, float pitchMix, float revMix) {
             StereoDelayHallEngine e;
@@ -785,20 +787,21 @@ int main() {
             e.process(l.data(), r.data(), 30000);
             return l;
         };
-        auto pm1 = run(12.0f, 1.0f, 1.0f); // pitch on, full pitch mix, reverb on
-        auto pm0 = run(12.0f, 0.0f, 1.0f); // pitch muted by pitchMix, reverb on
-        auto noRev = run(12.0f, 1.0f, 0.0f); // pitch on, reverb off
-        std::vector<float> diffMix(30000), diffRev(30000);
-        for (int i = 0; i < 30000; ++i) {
-            diffMix[(size_t) i] = pm1[(size_t) i] - pm0[(size_t) i];
-            diffRev[(size_t) i] = pm1[(size_t) i] - noRev[(size_t) i];
-        }
-        // far tail: direct echoes are over, only reverb tails remain
-        const double ePitchTail = sumAbs(diffMix, 18000, 26000); // pitch reverb tail (pitchMix 1 vs 0)
-        const double eAnyTail = sumAbs(diffRev, 18000, 26000);   // reverb tail at all (rev on vs off)
-        std::printf("  pitch in reverb: pitch-tail energy %.3f, total tail energy %.3f\n", ePitchTail, eAnyTail);
-        CHECK(eAnyTail > 1.0, "reverb tail present after the repeats");
-        CHECK(ePitchTail > 0.2 * eAnyTail && ePitchTail > 0.05, "pitch line feeds the reverb (tails on the pitch)");
+        auto bypass = run(0.0f, 0.0f, 1.0f);  // pitch 0 = bypass, reverb on
+        auto muted  = run(12.0f, 0.0f, 1.0f); // pitch active but Pitch Mix 0
+        auto on     = run(12.0f, 1.0f, 1.0f); // pitch active, Pitch Mix 100%
+        double maxd = 0.0;
+        for (int i = 0; i < 30000; ++i)
+            maxd = std::max(maxd, (double) std::fabs(muted[(size_t) i] - bypass[(size_t) i]));
+        std::vector<float> diff(30000);
+        for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - bypass[(size_t) i];
+        const int t = (int) (0.100 * sr);
+        const double eEcho = sumAbs(diff, t + 1000, t + 8000);  // direct pitch echo window
+        const double eTail = sumAbs(diff, 18000, 26000);        // far tail: reverb only
+        std::printf("  pitchMix gate: max|muted-bypass| %.6f, echo %.2f, tail %.5f\n", maxd, eEcho, eTail);
+        CHECK(maxd < 1e-6, "pitchMix=0: output identical to bypass (no pitch at all, incl. reverb tail)");
+        CHECK(eEcho > 10.0, "pitchMix=100%: pitch echo present post-mix");
+        CHECK(eTail < 1e-3, "pitch line does NOT feed the reverb (tail identical with/without pitch)");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

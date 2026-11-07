@@ -331,9 +331,10 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         }
 
         float rvL = 0.0f, rvR = 0.0f;
-        // the reverb is fed by the main repeats AND by the pitch line (scaled by Pitch Mix,
-        // so the pitch gets hall tails too; at pitchMix 0 it leaves no trace in the reverb)
-        reverb.process(wL + pitchMixL * extraL, wR + pitchMixR * extraR, rvL, rvR);
+        // the reverb is fed by the main repeats ONLY: the pitch line stays post-mix and is
+        // fully gated by Pitch Mix (0 = no pitch at all). Feeding the shared reverb with the
+        // pitch would make its tail ring for the whole decay even at Pitch Mix 0.
+        reverb.process(wL, wR, rvL, rvR);
         {
             // reverb width in mid/side: 0 = mono tail, 1 = full stereo, 2 = extra wide
             const float mid = 0.5f * (rvL + rvR);
