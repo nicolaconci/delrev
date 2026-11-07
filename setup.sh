@@ -68,3 +68,6 @@ echo "VST3:          $VST3_DIR/StereoDelayHall.vst3"
 echo "Audio Unit:    $AU_DIR/StereoDelayHall.component"
 echo "Standalone:    ${APP_BUNDLE:-$ARTEFACTS/Standalone/StereoDelayHall.app}"
 echo "Restart your DAW (or: killall -9 AudioComponentRegistrar) to rescan plugins."
+
+echo "==> Building distributable zip (for your other Macs)"
+./installer.sh
