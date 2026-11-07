@@ -7,10 +7,10 @@
 
 using namespace juce;
 
-static AudioParameterFloatAttributes makeAttrs(const String& label, int decimals) {
+static AudioParameterFloatAttributes makeAttrs(const String& label, int /*decimals*/) {
     return AudioParameterFloatAttributes()
         .withLabel(label)
-        .withStringFromValueFunction([decimals](float v, int) { return String(v, decimals); })
+        .withStringFromValueFunction([](float v, int) { return String((int) std::lround(v)); }) // round to integer
         .withValueFromStringFunction([](const String& s) { return s.getFloatValue(); });
 }
 
