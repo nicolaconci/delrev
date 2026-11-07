@@ -108,16 +108,18 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
     steps: `1.5:1`, `2:1`, `2.5:1`, `3:1`, `3.5:1`, `4:1`** — the knob moves in discrete
     steps evenly spread over its rotation (no skew), double-click = `2:1`):
     e.g. Time 200 ms → 300 / 400 / 500 / 600 / 700 / 800 ms
-  - **Pitch Mix L/R** (level, default 50 %): applied AFTER the pitch line's own reverb,
-    so **at 0 the pitch is completely silent** (dry and tail — output identical to bypass);
-    it is also independent of Mix L/R
+  - **Pitch Mix L/R** (level within the branch, default 50 %): **Mix L/R is the master of
+    the whole channel branch, pitch line included** — pitch level = `Mix × Pitch Mix`, so at
+    Mix 0 the pitch is silent too (dry only); at Pitch Mix 0 the pitch is completely silent
+    (dry and tail — output identical to bypass)
   The pitch line has its own hall reverb (same Decay/Width) and skips Tone/Grit, which
   act on the main repeats only; the shared main reverb is fed by the main repeats only;
   main Time L/R stays independent.
 - All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
   show the ratio text (`1:2`, `1:1`, `2:1`, …).
 
-v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·(pitchEcho + revMix·pitchTail)·wetGain) · master`,
+v2 signal flow: `out = ((1-mix)·dry + mix·wet + mix·pitchMix·(pitchEcho + revMix·pitchTail)·wetGain) · master`
+(Mix L/R is the branch master, pitch included),
 where `wet = (grit(w) + revMix·tail) · wetGain` (main reverb fed by the main repeats only),
 and the pitch branch is `signal → capture/transpose/hold → delay at ratio × Time → own hall
 → Pitch Mix` (ratio = 1.5/2/2.5/3/3.5/4 × Time).

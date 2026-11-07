@@ -378,8 +378,10 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
 
         const float dryL = target.swellOnInput ? inL * gL : inL;
         const float dryR = target.swellOnInput ? inR * gR : inR;
-        left[i] = (((1.0f - mixL) * dryL + mixL * wetL) + pitchMixL * (extraL + revMix * prL) * wetGain) * master;
-        right[i] = (((1.0f - mixR) * dryR + mixR * wetR) + pitchMixR * (extraR + revMix * prR) * wetGain) * master;
+        // Mix L/R is the master of the whole channel branch, pitch line included:
+        // pitch level = Mix x Pitch Mix (at Mix 0 the pitch is silent too)
+        left[i] = (((1.0f - mixL) * dryL + mixL * wetL) + mixL * pitchMixL * (extraL + revMix * prL) * wetGain) * master;
+        right[i] = (((1.0f - mixR) * dryR + mixR * wetR) + mixR * pitchMixR * (extraR + revMix * prR) * wetGain) * master;
     }
 }
 

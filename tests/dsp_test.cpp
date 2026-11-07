@@ -731,13 +731,14 @@ int main() {
         CHECK(d17 < 1e-6, "ratio 1.7 snaps to 1.5:1 (identical to explicit 1.5:1)");
     }
 
-    // 21) pitch mix is independent of Mix L: at mix=30% the pitch line still comes through at pitchMix level
+    // 21) Mix L/R is the master of the whole left branch, pitch line included:
+    //     pitch level = Mix L x Pitch Mix; at Mix 0 the pitch is silent even at Pitch Mix 100%
     {
-        auto run = [&](float pitchMix) {
+        auto run = [&](float mix, float pitchMix) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mixL = 0.3f; p.mixR = 0.3f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.mixL = mix; p.mixR = mix; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
             p.pitchL = 12.0f; p.ratioL = 2.0f; p.pitchMixL = pitchMix;
             e.setParams(p);
@@ -748,15 +749,26 @@ int main() {
             return l;
         };
         const int t = (int) (0.100 * sr);
-        auto off = run(0.0f);
-        auto on = run(1.0f);
-        // difference isolates the pitch line (dry + main echo identical in both runs)
-        std::vector<float> diff(30000, 0.0f);
-        for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - off[(size_t) i];
-        const double eDiff = rms(diff, t + 500, t + 20000);
-        const double eMain = rms(on, t + 500, t + 20000);
-        std::printf("  pitchMix independence: pitch-line rms %.4f vs output rms %.4f (mix 30%%)\n", eDiff, eMain);
-        CHECK(eDiff > 0.3 * eMain, "pitch line level independent of Mix L (audible at mix 30% with pitchMix 100%)");
+        auto off30 = run(0.3f, 0.0f);
+        auto on30 = run(0.3f, 1.0f);
+        auto off100 = run(1.0f, 0.0f);
+        auto on100 = run(1.0f, 1.0f);
+        auto dryPitch = run(0.0f, 1.0f);
+        auto dryNoPitch = run(0.0f, 0.0f);
+        std::vector<float> d30(30000), d100(30000);
+        for (int i = 0; i < 30000; ++i) {
+            d30[(size_t) i] = on30[(size_t) i] - off30[(size_t) i];
+            d100[(size_t) i] = on100[(size_t) i] - off100[(size_t) i];
+        }
+        const double e30 = rms(d30, t + 500, t + 20000);
+        const double e100 = rms(d100, t + 500, t + 20000);
+        double maxd = 0.0;
+        for (int i = 0; i < 30000; ++i)
+            maxd = std::max(maxd, (double) std::fabs(dryPitch[(size_t) i] - dryNoPitch[(size_t) i]));
+        std::printf("  mix master: pitch rms @mix30 %.4f, @mix100 %.4f, max|dry diff| %.6f\n", e30, e100, maxd);
+        CHECK(e30 > 0.05, "pitch audible at Mix 30% (level = Mix x Pitch Mix)");
+        CHECK(e100 > 2.5 * e30, "pitch level grows with Mix L (Mix is the branch master)");
+        CHECK(maxd < 1e-6, "Mix L = 0: pitch completely silent even at Pitch Mix 100%");
     }
 
     // 22) capture-hold: the pitch line is silent before the first transient, then the
