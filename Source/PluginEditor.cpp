@@ -30,6 +30,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"revDecay",   "Decay",      Colour(0xff40e0d0)}, // REV
         {"revMix",     "Mix",        Colour(0xff40e0d0)},
         {"revWidth",   "Width",      Colour(0xff40e0d0)},
+        {"wetGain",    "Wet Gain",   Colour(0xffeeeeee)}, // WET
     };
 
     titleLabel.setText("essentia", dontSendNotification);
@@ -211,4 +212,5 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto wetBottom = wetArea.removeFromBottom(46);
     wetLabel.setBounds(wetBottom.removeFromTop(16));
     wetButton.setBounds(wetBottom.withSizeKeepingCentre(120, 24));
+    placeKnob(17, wetArea);
 }

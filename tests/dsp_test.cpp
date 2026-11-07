@@ -263,6 +263,25 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
+    // 10b) wet gain applies to the wet path only
+    {
+        StereoDelayHallEngine e;
+        e.prepare(sr, 512);
+        EngineParams p;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+        p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+        p.wetGainDb = 6.0206f;
+        e.setParams(p);
+        std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+        l[0] = 1.0f;
+        e.process(l.data(), r.data(), 20000);
+        const int t = (int) (0.100 * sr);
+        float pv = 0.0f;
+        peakIndex(l, t - 20, t + 20, &pv);
+        std::printf("  wetGain +6dB: repeat peak %.3f (expect ~2.0)\n", (double) pv);
+        CHECK(std::fabs(pv - 2.0f) < 0.1f, "wetGain +6 dB doubles the wet repeat");
+    }
+
     // 11) smear|crystal bipolar on the line input: negative = smear (lowpass), zero = off
     {
         auto run = [&](float smear) {

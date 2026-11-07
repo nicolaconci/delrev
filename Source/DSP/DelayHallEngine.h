@@ -24,6 +24,7 @@ struct EngineParams {
     float revDecaySec = 3.0f; // hall reverb decay, RT60-like (s)
     float revMix = 0.35f;     // reverb amount on the repeats only (0..1)
     float revWidth = 1.0f;    // reverb stereo width: 0 = mono tail, 1 = full, 2 = extra wide
+    float wetGainDb = 0.0f;   // gain on the wet path only (useful on aux buses at 100% wet)
 };
 
 // Stereo delay with independent L/R times, time modulation, feedback, and a
@@ -115,8 +116,8 @@ private:
 
     double sampleRate = 44100.0;
     EngineParams target {};
-    float preGain = 1.0f, master = 1.0f; // smoothed linear gains
-    float targetPreGain = 1.0f, targetMaster = 1.0f;
+    float preGain = 1.0f, master = 1.0f, wetGain = 1.0f; // smoothed linear gains
+    float targetPreGain = 1.0f, targetMaster = 1.0f, targetWetGain = 1.0f;
     float mixL = 0.0f, mixR = 0.0f, toneL = 1.0f, toneR = 1.0f;
     float toneLpL = 0.0f, toneLpR = 0.0f; // tone lowpass state
     float feedbackL = 0.0f, feedbackR = 0.0f;

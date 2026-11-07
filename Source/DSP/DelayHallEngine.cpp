@@ -25,8 +25,10 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     target = def;
     targetPreGain = dbToLinear(def.preGainDb);
     targetMaster = dbToLinear(def.masterDb);
+    targetWetGain = dbToLinear(def.wetGainDb);
     preGain = targetPreGain;
     master = targetMaster;
+    wetGain = targetWetGain;
     mixL = def.mixL;
     mixR = def.mixR;
     toneL = def.toneL;
@@ -66,12 +68,15 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.revDecaySec = std::clamp(c.revDecaySec, 0.2f, 10.0f);
     c.revMix = std::clamp(c.revMix, 0.0f, 1.0f);
     c.revWidth = std::clamp(c.revWidth, 0.0f, 2.0f);
+    c.wetGainDb = std::clamp(c.wetGainDb, -12.0f, 12.0f);
     target = c;
     targetPreGain = dbToLinear(c.preGainDb);
     targetMaster = dbToLinear(c.masterDb);
+    targetWetGain = dbToLinear(c.wetGainDb);
     if (!paramsSnapped) {
         preGain = targetPreGain;
         master = targetMaster;
+        wetGain = targetWetGain;
         mixL = c.mixL;
         mixR = c.mixR;
         toneL = c.toneL;
@@ -100,6 +105,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
     for (int i = 0; i < numSamples; ++i) {
         preGain += (targetPreGain - preGain) * smoothCoef;
         master += (targetMaster - master) * smoothCoef;
+        wetGain += (targetWetGain - wetGain) * smoothCoef;
         mixL += (target.mixL - mixL) * smoothCoef;
         mixR += (target.mixR - mixR) * smoothCoef;
         toneL += (target.toneL - toneL) * smoothCoef;
@@ -231,8 +237,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             rvR = mid - side;
         }
 
-        const float wetL = wL + revMix * rvL;
-        const float wetR = wR + revMix * rvR;
+        const float wetL = (wL + revMix * rvL) * wetGain;
+        const float wetR = (wR + revMix * rvR) * wetGain;
 
         const float dryL = target.swellOnInput ? inL * gL : inL;
         const float dryR = target.swellOnInput ? inR * gR : inR;
@@ -248,6 +254,7 @@ void StereoDelayHallEngine::reset() {
     lfoPhase = 0.0f;
     preGain = targetPreGain;
     master = targetMaster;
+    wetGain = targetWetGain;
     mixL = target.mixL;
     mixR = target.mixR;
     toneL = target.toneL;

@@ -47,6 +47,7 @@ purple / teal).
 | REV     | Decay           | 0.2–10 s          | 3 s     | hall decay, RT60-mapped (log scale)                            |
 | REV     | Mix             | 0–100 %           | 35 %    | reverb amount on the repeats only                              |
 | REV     | Width           | 0–200 %           | 100 %   | reverb tail width (M/S): 0% mono, 100% full stereo, 200% extra wide |
+| WET     | Wet Gain        | -12..+12 dB       | 0 dB    | gain on the wet path only — raise it on aux buses at 100% wet    |
 | WET     | 100% Wet (button) | on/off          | off     | forces Mix L/R to 100% — aux bus/send (wet-only), knobs untouched |
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider

@@ -58,6 +58,7 @@ private:
     std::atomic<float>* revMixParam = nullptr;
     std::atomic<float>* revWidthParam = nullptr;
     std::atomic<float>* wet100Param = nullptr;
+    std::atomic<float>* wetGainParam = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessor)
 };
