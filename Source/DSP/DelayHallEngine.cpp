@@ -6,6 +6,18 @@ namespace dsp {
 
 static float dbToLinear(float db) { return std::pow(10.0f, db / 20.0f); }
 
+// ratio has 4 discrete steps: 1.5:1, 2:1, 3:1, 4:1 (x the channel's main delay time)
+static float snapRatio(float r) {
+    const float vals[4] = {1.5f, 2.0f, 3.0f, 4.0f};
+    float best = vals[0];
+    float bd = std::fabs(r - best);
+    for (int i = 1; i < 4; ++i) {
+        const float d = std::fabs(r - vals[i]);
+        if (d < bd) { bd = d; best = vals[i]; }
+    }
+    return best;
+}
+
 void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     sampleRate = sr;
     smoothCoef = 1.0f - std::exp(-1.0f / (float) (sr * 0.005)); // ~5 ms smoothing
@@ -17,6 +29,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     chL.prepare(sr, pLineMax);
     chR.prepare(sr, pLineMax);
     capTimerL = capTimerR = 1 << 30;
+    pitchRev.prepare(sr);
     inLpL = inLpR = 0.0f;
     inPrevL = inPrevR = 0.0f;
     fastEnvL = fastEnvR = 0.0f;
@@ -90,8 +103,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.modVol = std::clamp(c.modVol, 0.0f, 1.0f);
     c.pitchL = std::clamp(c.pitchL, -12.0f, 12.0f);
     c.pitchR = std::clamp(c.pitchR, -12.0f, 12.0f);
-    c.ratioL = std::clamp(c.ratioL, 0.25f, 4.0f);
-    c.ratioR = std::clamp(c.ratioR, 0.25f, 4.0f);
+    c.ratioL = std::clamp(c.ratioL, 1.5f, 4.0f);
+    c.ratioR = std::clamp(c.ratioR, 1.5f, 4.0f);
     c.pitchMixL = std::clamp(c.pitchMixL, 0.0f, 1.0f);
     c.pitchMixR = std::clamp(c.pitchMixR, 0.0f, 1.0f);
     target = c;
@@ -134,6 +147,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
     const int lineSize = (int) lineL.buf.size();
     const float maxOffset = (float) (lineSize - 4);
     reverb.setDecay((double) target.revDecaySec, sampleRate);
+    pitchRev.setDecay((double) target.revDecaySec, sampleRate);
 
     for (int i = 0; i < numSamples; ++i) {
         preGain += (targetPreGain - preGain) * smoothCoef;
@@ -259,8 +273,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         // extra pitch lines: at each transient, capture the recent input (ring buffer),
         // transpose it (read rate 2^(st/12)) and hold it (loop); the held snippet is
         // echoed at ratio x main time (ratio snapped to powers of 2). pitch 0 st = bypass.
-        const float rL = std::pow(2.0f, std::round(std::log2(std::max(0.25f, ratioL))));
-        const float rR = std::pow(2.0f, std::round(std::log2(std::max(0.25f, ratioR))));
+        const float rL = snapRatio(ratioL);
+        const float rR = snapRatio(ratioR);
         const float readRateL = std::pow(2.0f, pitchL / 12.0f);
         const float readRateR = std::pow(2.0f, pitchR / 12.0f);
         const float bypassL = (std::fabs(pitchL) < 0.01f) ? 0.0f : 1.0f;
@@ -331,10 +345,19 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         }
 
         float rvL = 0.0f, rvR = 0.0f;
-        // the reverb is fed by the main repeats ONLY: the pitch line stays post-mix and is
-        // fully gated by Pitch Mix (0 = no pitch at all). Feeding the shared reverb with the
-        // pitch would make its tail ring for the whole decay even at Pitch Mix 0.
+        // main hall: fed by the main repeats only
         reverb.process(wL, wR, rvL, rvR);
+        // pitch chain: original signal -> capture/transpose/hold -> delay at ratio x Time
+        // -> dedicated hall -> Pitch Mix (the gate is AFTER the reverb, so Pitch Mix 0
+        // silences the pitch completely, tail included)
+        float prL = 0.0f, prR = 0.0f;
+        pitchRev.process(extraL, extraR, prL, prR);
+        {
+            const float mid = 0.5f * (prL + prR);
+            const float side = 0.5f * (prL - prR) * revWidth;
+            prL = mid + side;
+            prR = mid - side;
+        }
         {
             // reverb width in mid/side: 0 = mono tail, 1 = full stereo, 2 = extra wide
             const float mid = 0.5f * (rvL + rvR);
@@ -348,8 +371,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
 
         const float dryL = target.swellOnInput ? inL * gL : inL;
         const float dryR = target.swellOnInput ? inR * gR : inR;
-        left[i] = (((1.0f - mixL) * dryL + mixL * wetL) + pitchMixL * extraL * wetGain) * master;
-        right[i] = (((1.0f - mixR) * dryR + mixR * wetR) + pitchMixR * extraR * wetGain) * master;
+        left[i] = (((1.0f - mixL) * dryL + mixL * wetL) + pitchMixL * (extraL + revMix * prL) * wetGain) * master;
+        right[i] = (((1.0f - mixR) * dryR + mixR * wetR) + pitchMixR * (extraR + revMix * prR) * wetGain) * master;
     }
 }
 
@@ -357,6 +380,7 @@ void StereoDelayHallEngine::reset() {
     lineL.clear();
     lineR.clear();
     reverb.clear();
+    pitchRev.clear();
     lfoPhase = 0.0f;
     preGain = targetPreGain;
     master = targetMaster;

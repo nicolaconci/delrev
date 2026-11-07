@@ -90,30 +90,29 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   purpose: 100 % gives the saturation that the raw amount reached at 50 %.
 - **Mod Vol** (0–100 %, default 100 %, small knob at the bottom of MOD): scales the LFO depth
 - **Three small knobs per channel at the bottom of LEFT/RIGHT** — extra "capture & hold"
-  pitch line (ICE-style), added post-mix. It does NOT pitch-shift the whole signal:
-  at each **transient** (onset detector, 60 ms refractory) the last 150 ms of the input
-  are captured, **transposed** by the Pitch amount and **held** (looped, crossfaded at
-  the wrap), then echoed at `ratio × Time`:
+  pitch line (ICE-style). Pitch chain per channel:
+  `original signal → capture/hold → delay at ratio × Time L/R → dedicated hall reverb → Pitch Mix`
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
-    transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**
-  - **Ratio L/R** (echo time vs the channel's main delay time, snapped to powers of 2:
-    `1:4`, `1:2`, `1:1`, `2:1`, `4:1`, double-click = `1:1`): the held snippet echoes at
-    ≈ `ratio × Time L/R` (`2:1` → about double the time)
-  - **Pitch Mix L/R** (level, default 50 %, 0 = muted), applied AFTER Mix L/R, so the pitch
-    lines stay audible independently of the dry/wet mix
-  The line is gated at the transient and held while playing, with a 300 ms release.
-  **Pitch Mix gates the pitch line completely**: at 0 the output is identical to bypass
-  (no pitch dry, no pitch in the reverb). The pitch line is post-mix only and does NOT
-  feed the shared hall reverb (its tail would keep ringing for the whole decay even at
-  Pitch Mix 0); it also skips Tone/Grit, which act on the main repeats only; main
-  Time L/R stays independent.
+    transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**.
+    At each **transient** (onset detector, 60 ms refractory) the last 150 ms of the input
+    are captured and **held** (looped with a crossfade at the wrap); the line is held
+    while playing, with a 300 ms release
+  - **Ratio L/R** (echo time = multiple of the channel's main delay time, **4 discrete
+    steps: `1.5:1`, `2:1`, `3:1`, `4:1`**, double-click = `2:1`): e.g. Time 200 ms →
+    300 / 400 / 600 / 800 ms
+  - **Pitch Mix L/R** (level, default 50 %): applied AFTER the pitch line's own reverb,
+    so **at 0 the pitch is completely silent** (dry and tail — output identical to bypass);
+    it is also independent of Mix L/R
+  The pitch line has its own hall reverb (same Decay/Width) and skips Tone/Grit, which
+  act on the main repeats only; the shared main reverb is fed by the main repeats only;
+  main Time L/R stays independent.
 - All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
   show the ratio text (`1:2`, `1:1`, `2:1`, …).
 
-v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·pitchLine·wetGain) · master`,
-where `wet = (grit(w) + revMix·tail) · wetGain` (reverb fed by the main repeats only) and
-the pitch line is the transient-captured, transposed, held (looped) snippet echoed at
-≈ `ratio × Time`, fully gated by Pitch Mix.
+v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·(pitchEcho + revMix·pitchTail)·wetGain) · master`,
+where `wet = (grit(w) + revMix·tail) · wetGain` (main reverb fed by the main repeats only),
+and the pitch branch is `signal → capture/transpose/hold → delay at ratio × Time → own hall
+→ Pitch Mix` (ratio = 1.5/2/3/4 × Time).
 
 ## Bus layouts
 

@@ -74,12 +74,12 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, defs[i].id, sliders[i]);
     }
 
-    // bipolar knobs: double-click returns to center (smear|crystal, pitch L/R -> 0; ratio L/R -> 1:1)
+    // bipolar knobs: double-click returns to center (smear|crystal, pitch L/R -> 0; ratio L/R -> 2:1 default)
     sliders[16].setDoubleClickReturnValue(true, 0.0);
     sliders[5].setDoubleClickReturnValue(true, 0.0);
     sliders[12].setDoubleClickReturnValue(true, 0.0);
-    sliders[6].setDoubleClickReturnValue(true, 1.0);
-    sliders[13].setDoubleClickReturnValue(true, 1.0);
+    sliders[6].setDoubleClickReturnValue(true, 2.0);
+    sliders[13].setDoubleClickReturnValue(true, 2.0);
 
     swellInputButton.setButtonText("On Input");
     swellInputButton.setColour(ToggleButton::textColourId, Colours::white);

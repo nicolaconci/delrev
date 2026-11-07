@@ -30,8 +30,8 @@ struct EngineParams {
     float modVol = 1.0f;      // 0..1 modulator (LFO) volume
     float pitchL = 0.0f;      // extra line L pitch shift (semitones, -12..+12, 0 = bypass); captured at transients and held
     float pitchR = 0.0f;      // extra line R pitch shift (semitones)
-    float ratioL = 1.0f;      // extra line L echo time = ratio x main time (0.25..4, snapped to powers of 2)
-    float ratioR = 1.0f;      // extra line R echo time ratio
+    float ratioL = 2.0f;      // extra line L echo time = ratio x main time; 4 discrete steps: 1.5, 2, 3, 4
+    float ratioR = 2.0f;      // extra line R echo time ratio
     float pitchMixL = 0.5f;   // extra line L level (0..1), applied post-mix (independent of Mix L)
     float pitchMixR = 0.5f;   // extra line R level
 };
@@ -192,7 +192,7 @@ private:
     float rampL = 1.0f, rampR = 1.0f;
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
-    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, ratioL = 1.0f, ratioR = 1.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
+    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, ratioL = 2.0f, ratioR = 2.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
     float gateL = 0.0f, gateR = 0.0f; // pitch-line gate: opens at the transient, held while playing
     float gritInL = 0.0f, gritOutL = 0.0f, gritInR = 0.0f, gritOutR = 0.0f; // slow RMS follower: constant-volume grit
     CaptureHold chL, chR;
@@ -203,6 +203,7 @@ private:
     bool paramsSnapped = false;
     DelayLine lineL, lineR;
     HallReverb reverb;
+    HallReverb pitchRev; // dedicated hall for the pitch lines (gated by Pitch Mix after it)
     float lfoPhase = 0.0f;
 };
 
