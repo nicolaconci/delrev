@@ -23,8 +23,6 @@ private:
 
     juce::GroupComponent groupPre, groupLeft, groupRight, groupMaster;
     juce::GroupComponent groupSmear, groupMod, groupRev, groupWet;
-    juce::ComboBox smearCurveBox;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> smearCurveAttachment;
     juce::ToggleButton swellInputButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> swellInputAttachment;
     juce::ToggleButton wetButton;

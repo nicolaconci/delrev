@@ -21,7 +21,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"toneR",      "Tone R",     Colour(0xff4dff88)},
         {"mixR",       "Mix R",      Colour(0xff4dff88)},
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
-        {"smear",      "Smear",      Colour(0xffaaaaaa)}, // SMEAR
+        {"smear",      "Smear|Crystal", Colour(0xffaaaaaa)}, // SMEAR
         {"swell",      "Swell",      Colour(0xffaaaaaa)},
         {"modRate",    "Rate",       Colour(0xffc77dff)}, // MOD
         {"modDepth",   "Depth",      Colour(0xffc77dff)},
@@ -56,15 +56,8 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         attachments[i] = std::make_unique<AudioProcessorValueTreeState::SliderAttachment>(apvts, defs[i].id, sliders[i]);
     }
 
-    smearCurveBox.addItem("Linear", 1);
-    smearCurveBox.addItem("Log", 2);
-    smearCurveBox.addItem("Exp", 3);
-    smearCurveBox.setColour(ComboBox::textColourId, Colours::white);
-    smearCurveBox.setColour(ComboBox::backgroundColourId, Colour(0xff2a2a32));
-    smearCurveBox.setColour(ComboBox::outlineColourId, Colour(0xffaaaaaa));
-    smearCurveBox.setColour(ComboBox::arrowColourId, Colour(0xffaaaaaa));
-    addAndMakeVisible(smearCurveBox);
-    smearCurveAttachment = std::make_unique<AudioProcessorValueTreeState::ComboBoxAttachment>(apvts, "smearCurve", smearCurveBox);
+    // bipolar smear|crystal knob: double-click returns to center (off)
+    sliders[10].setDoubleClickReturnValue(true, 0.0);
 
     swellInputButton.setButtonText("On Input");
     swellInputButton.setColour(ToggleButton::textColourId, Colours::white);
@@ -159,7 +152,6 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto smr = row2.removeFromLeft(280);
     groupSmear.setBounds(smr);
     auto smrArea = Rectangle<int>(smr.getX() + 4, smr.getY() + 14, smr.getWidth() - 8, smr.getHeight() - 18);
-    smearCurveBox.setBounds(smrArea.removeFromBottom(22));
     swellInputButton.setBounds(smrArea.removeFromBottom(24).withSizeKeepingCentre(110, 22));
     for (int i = 0; i < 2; ++i)
         placeKnob(10 + i, cellOf(smrArea, i, 2));

@@ -54,8 +54,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.toneR = std::clamp(c.toneR, 0.0f, 1.0f);
     c.feedbackL = std::clamp(c.feedbackL, 0.0f, 0.95f);
     c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
-    c.smear = std::clamp(c.smear, 0.0f, 1.0f);
-    c.smearCurve = std::clamp(c.smearCurve, 0, 2);
+    c.smear = std::clamp(c.smear, -1.0f, 1.0f);
     c.swellMs = std::clamp(c.swellMs, 0.0f, maxSwellMs);
     c.timeLms = std::clamp(c.timeLms, minTimeMs, maxTimeMs);
     c.timeRms = std::clamp(c.timeRms, minTimeMs, maxTimeMs);
@@ -154,25 +153,27 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             gR = rampUp(inR, fastEnvR, slowEnvR, rampR, onsetTimerR);
         }
 
-        // smear: one-pole lowpass applied ONCE to the input entering the delay
-        // line. The first repeat is born smeared (its attack is softened) and
-        // the later repeats inherit the same shape through the raw feedback —
-        // no compounding, so repeats after the first are not darkened further.
-        // Linear filter -> no distortion. Curve shapes amount -> cutoff.
+        // smear | crystal: bipolar filter applied ONCE to the input entering the
+        // delay line. smear < 0: lowpass (log mapping, acts early) -> the first
+        // repeat is born soft and later repeats inherit it via the raw feedback
+        // (no compounding). smear > 0: highpass ("crystal"). Linear filters ->
+        // no distortion.
         float wInL = inL, wInR = inR;
-        if (smear > 0.01f) {
-            float eff;
-            switch (target.smearCurve) {
-                case 1:  eff = std::pow(smear, 0.5f); break; // log: stronger early
-                case 2:  eff = std::pow(smear, 2.0f); break; // exp: only near max
-                default: eff = smear; break;                // linear
-            }
-            const float fc = 2000.0f * std::pow(8.0f, 1.0f - eff); // 2 kHz .. 16 kHz
+        if (smear < -0.01f) {
+            const float eff = std::pow(-smear, 0.5f);                    // log: acts early
+            const float fc = 2000.0f * std::pow(8.0f, 1.0f - eff);       // 2 kHz .. 16 kHz
             const float a = 1.0f - std::exp(-6.2831853f * fc / sr);
             inLpL += a * (inL - inLpL);
             inLpR += a * (inR - inLpR);
             wInL = inLpL;
             wInR = inLpR;
+        } else if (smear > 0.01f) {
+            const float fc = 800.0f * std::pow(10.0f, smear);            // 800 Hz .. 8 kHz
+            const float a = 1.0f - std::exp(-6.2831853f * fc / sr);
+            inLpL += a * (inL - inLpL);
+            inLpR += a * (inR - inLpR);
+            wInL = inL - inLpL; // highpass = input minus its lowpass
+            wInR = inR - inLpR;
         }
 
         lineL.write(wInL * gL + feedbackL * dL);

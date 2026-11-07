@@ -14,8 +14,7 @@ struct EngineParams {
     float toneR = 1.0f;       // 0..1 lowpass on the right wet
     float feedbackL = 0.35f;  // 0..0.95 recirculation gain, left channel
     float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
-    float smear = 0.0f;       // 0..1 lowpass applied once to the delay-line input (first repeat smeared, repeats inherit it)
-    int smearCurve = 0;       // 0 = linear, 1 = log, 2 = exp mapping of amount -> cutoff
+    float smear = 0.0f;       // bipolar: <0 = smear lowpass on the line input, >0 = crystal highpass; 0 = off
     float swellMs = 0.0f;     // 0..maxSwellMs: volume swell-in (time ramp) per repeat, baked into the line input
     bool swellOnInput = false; // true: the same swell is also applied to the dry input signal
     float timeLms = 375.0f;   // delay time, left channel (ms)

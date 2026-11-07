@@ -263,7 +263,7 @@ int main() {
         CHECK(std::fabs(dry[0] - 2.0f) < 1e-4f, "preGain also scales the dry path");
     }
 
-    // 11) smear: lowpass applied once to the line input - first repeat smeared, no compounding on later repeats
+    // 11) smear|crystal bipolar on the line input: negative = smear (lowpass), zero = off
     {
         auto run = [&](float smear) {
             StereoDelayHallEngine e;
@@ -271,7 +271,7 @@ int main() {
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.smear = smear; p.smearCurve = 0;
+            p.smear = smear;
             e.setParams(p);
             std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
             l[0] = 1.0f;
@@ -285,47 +285,45 @@ int main() {
         const float e1clear = std::fabs(pv);
         peakIndex(clear, 2 * t - 20, 2 * t + 20, &pv);
         const float e2clear = std::fabs(pv);
-        auto smr = run(1.0f);
+        auto smr = run(-1.0f);
         peakIndex(smr, t - 20, t + 20, &pv);
         const float e1smr = std::fabs(pv);
         peakIndex(smr, 2 * t - 20, 2 * t + 20, &pv);
         const float e2smr = std::fabs(pv);
-        std::printf("  smear: echo1 clear %.3f smeared %.3f; echo2 clear %.3f smeared %.3f (ratio %.3f vs fb 0.9)\n",
+        std::printf("  smear|crystal: echo1 clear %.3f smeared %.3f; echo2 clear %.3f smeared %.3f (ratio %.3f)\n",
                     (double) e1clear, (double) e1smr, (double) e2clear, (double) e2smr, (double) (e2smr / e1smr));
-        CHECK(e1clear > 0.8f, "smear=0: first repeat full");
-        CHECK(e1smr < 0.5f * e1clear, "smear=100%: first repeat attack softened");
+        CHECK(e1clear > 0.8f, "center (0): first repeat full");
+        CHECK(e1smr < 0.5f * e1clear, "full CCW: first repeat attack softened (smear)");
         CHECK(std::fabs(e2smr / e1smr - 0.9f) < 0.1f, "no compounding: echo2/echo1 ratio stays = feedback");
     }
 
-    // 12) smear curve shapes amount -> cutoff at the line input: at 50%, exp brightest, log darkest
+    // 12) crystal (smear > 0): highpass on the line input - highs pass, lows cut
     {
-        auto run = [&](int curve) {
+        auto run = [&](float freq, float smear) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
-            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.9f; p.feedbackR = 0.9f;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.smear = 0.5f; p.smearCurve = curve;
+            p.smear = smear;
             e.setParams(p);
             std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
-            l[0] = 1.0f;
+            for (int i = 0; i < 20000; ++i)
+                l[i] = std::sin(2.0 * 3.14159265 * freq * i / sr);
             e.process(l.data(), r.data(), 20000);
             return l;
         };
         const int t = (int) (0.100 * sr);
-        float a[3] = {0, 0, 0};
         float pv = 0.0f;
-        for (int c = 0; c < 3; ++c) {
-            auto v = run(c);
-            peakIndex(v, t - 20, t + 20, &pv);
-            a[c] = std::fabs(pv);
-        }
-        std::printf("  smear=0.5 echo1 amp: linear %.3f log %.3f exp %.3f\n",
-                    (double) a[0], (double) a[1], (double) a[2]);
-        CHECK(a[2] > a[0] && a[0] > a[1], "at 50%: exp > linear > log (echo1 amplitude)");
-        CHECK(a[0] > 0.45f && a[0] < 0.65f, "linear ~0.55");
-        CHECK(a[1] > 0.33f && a[1] < 0.48f, "log ~0.40 (darkest)");
-        CHECK(a[2] > 0.65f && a[2] < 0.8f, "exp ~0.73 (brightest)");
+        auto hi = run(8000.0f, 0.5f);   // 8 kHz, crystal halfway (fc ~2.5 kHz)
+        peakIndex(hi, t + 500, t + 3000, &pv);
+        const float a8 = std::fabs(pv);
+        auto lo = run(300.0f, 0.5f);    // 300 Hz, same crystal setting
+        peakIndex(lo, t + 500, t + 3000, &pv);
+        const float a300 = std::fabs(pv);
+        std::printf("  crystal @+50%%: 8kHz echo %.3f, 300Hz echo %.3f\n", (double) a8, (double) a300);
+        CHECK(a8 > 0.5f, "crystal: 8 kHz passes (bright shimmer)");
+        CHECK(a300 < 0.25f * a8, "crystal: 300 Hz cut (highpass)");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,
