@@ -31,30 +31,25 @@ static AudioParameterFloatAttributes makeRateAttrs() {
         .withValueFromStringFunction([](const String& s) { return s.getFloatValue(); });
 }
 
-// ratio knob label: 4 discrete steps vs the main delay time ("1.5:1", "2:1", "3:1", "4:1")
+// ratio knob label: discrete steps 1.5:1, 2:1, 2.5:1, 3:1, 3.5:1, 4:1 vs the main delay time
 static AudioParameterFloatAttributes makeRatioAttrs() {
     return AudioParameterFloatAttributes()
         .withStringFromValueFunction([](float v, int) {
-            const float vals[4] = {1.5f, 2.0f, 3.0f, 4.0f};
-            float best = vals[0];
-            float bd = std::fabs(v - best);
-            for (int i = 1; i < 4; ++i) {
-                const float d = std::fabs(v - vals[i]);
-                if (d < bd) { bd = d; best = vals[i]; }
-            }
-            if (best == 1.5f)
-                return String("1.5:1");
-            return String((int) std::lround(best)) + ":1";
+            const float r = std::clamp(std::round(v * 2.0f) * 0.5f, 1.5f, 4.0f);
+            if (r == std::floor(r))
+                return String((int) std::lround(r)) + ":1";
+            return String(r, 1) + ":1"; // "2.5:1"
         })
         .withValueFromStringFunction([](const String& s) {
+            float x = s.getFloatValue();
             const int colon = s.indexOfChar(':');
             if (colon > 0) {
                 const float a = s.substring(0, colon).getFloatValue();
                 const float b = s.substring(colon + 1).getFloatValue();
                 if (a > 0.0f && b > 0.0f)
-                    return std::clamp(a / b, 1.5f, 4.0f);
+                    x = a / b;
             }
-            return std::clamp(s.getFloatValue(), 1.5f, 4.0f);
+            return std::clamp(std::round(x * 2.0f) * 0.5f, 1.5f, 4.0f);
         });
 }
 
@@ -98,7 +93,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("modVol", "Mod Vol", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
     addFloat("pitchL", "Pitch L", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
     addFloat("pitchR", "Pitch R", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
-    NormalisableRange<float> ratioRange(1.5f, 4.0f, 0.01f);
+    NormalisableRange<float> ratioRange(1.5f, 4.0f, 0.5f); // interval 0.5 -> the knob moves in discrete steps
     ratioRange.setSkewForCentre(2.0f);
     addFloat("ratioL", "Ratio L", ratioRange, 2.0f, makeRatioAttrs());
     addFloat("ratioR", "Ratio R", ratioRange, 2.0f, makeRatioAttrs());

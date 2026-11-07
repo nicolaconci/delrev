@@ -79,7 +79,7 @@ private:
             line.resize(lineMaxSamples);
             capLen = (int) std::ceil(0.200 * sr); // 200 ms capture/hold window (pad-like)
             ring.assign((size_t) capLen, 0.0f);
-            window = std::min(capLen * 0.5f, 0.050f * (float) sr); // 50 ms crossfades (wide = smooth)
+            window = std::min(capLen * 0.5f, 0.080f * (float) sr); // 80 ms crossfades (wide = smooth, no glitches)
             ringPos = 0;
             rp = 0.0f;
             rpX = 0.0f;

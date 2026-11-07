@@ -94,14 +94,15 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   `original signal → capture/hold → delay at ratio × Time L/R → dedicated hall reverb → Pitch Mix`
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
     transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**.
-    At each **transient** (onset detector, 60 ms refractory) the last 200 ms of the input
+    At each **transient** (onset detector, 150 ms refractory) the last 200 ms of the input
     are captured and **held**: the loop read pointer is **crossfaded over to the transient
-    over 50 ms** (no jump, no click) and the loop itself wraps with a 50 ms crossfade;
-    the gate attack is a soft ~10 ms swell-like ramp (release 300 ms); the echo offset is
-    smoothed so Time/Ratio changes glide instead of clicking
-  - **Ratio L/R** (echo time = multiple of the channel's main delay time, **4 discrete
-    steps: `1.5:1`, `2:1`, `3:1`, `4:1`**, double-click = `2:1`): e.g. Time 200 ms →
-    300 / 400 / 600 / 800 ms
+    over 80 ms** (no jump, no click) and the loop itself wraps with an 80 ms crossfade;
+    capture refractory 150 ms; the gate attack is a soft ~10 ms swell-like ramp
+    (release 300 ms); the echo offset is smoothed so Time/Ratio changes glide instead of
+    clicking
+  - **Ratio L/R** (echo time = multiple of the channel's main delay time, **6 discrete
+    steps: `1.5:1`, `2:1`, `2.5:1`, `3:1`, `3.5:1`, `4:1`** — the knob moves in discrete
+    steps, double-click = `2:1`): e.g. Time 200 ms → 300 / 400 / 500 / 600 / 700 / 800 ms
   - **Pitch Mix L/R** (level, default 50 %): applied AFTER the pitch line's own reverb,
     so **at 0 the pitch is completely silent** (dry and tail — output identical to bypass);
     it is also independent of Mix L/R
@@ -114,7 +115,7 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
 v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·(pitchEcho + revMix·pitchTail)·wetGain) · master`,
 where `wet = (grit(w) + revMix·tail) · wetGain` (main reverb fed by the main repeats only),
 and the pitch branch is `signal → capture/transpose/hold → delay at ratio × Time → own hall
-→ Pitch Mix` (ratio = 1.5/2/3/4 × Time).
+→ Pitch Mix` (ratio = 1.5/2/2.5/3/3.5/4 × Time).
 
 ## Bus layouts
 

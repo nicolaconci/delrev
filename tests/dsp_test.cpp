@@ -717,13 +717,19 @@ int main() {
         CHECK(eMain > 100.0, "main echo of the burst at 100 ms");
         CHECK(eEarly < 0.05 * ePitch, "ratio 2:1: no pitch-line energy before ~2x main time");
         CHECK(ePitch > 100.0, "ratio 2:1: pitch line echoes around 2x the main time (200 ms)");
-        // ratio snaps to the 4 discrete steps: 1.7 -> 2:1
-        auto snapped = run(12.0f, 1.7f);
-        std::vector<float> diffSnap(30000);
-        for (int i = 0; i < 30000; ++i) diffSnap[(size_t) i] = snapped[(size_t) i] - off[(size_t) i];
-        const double eSnap = sumAbs(diffSnap, t2 - 100, t2 + 6000);
-        std::printf("  ratio snap: 1.7 snapped to 2:1, energy around 200ms %.1f\n", eSnap);
-        CHECK(eSnap > 100.0, "ratio 1.7 snaps to 2:1 (echo at 200 ms)");
+        // ratio snaps to discrete 0.5 steps: 1.8 -> 2:1, 1.7 -> 1.5:1 (bit-identical to the explicit step)
+        auto r18 = run(12.0f, 1.8f);
+        auto r20 = run(12.0f, 2.0f);
+        auto r17 = run(12.0f, 1.7f);
+        auto r15 = run(12.0f, 1.5f);
+        double d18 = 0.0, d17 = 0.0;
+        for (int i = 0; i < 30000; ++i) {
+            d18 = std::max(d18, (double) std::fabs(r18[(size_t) i] - r20[(size_t) i]));
+            d17 = std::max(d17, (double) std::fabs(r17[(size_t) i] - r15[(size_t) i]));
+        }
+        std::printf("  ratio snap: |1.8-2.0| %.6f, |1.7-1.5| %.6f\n", d18, d17);
+        CHECK(d18 < 1e-6, "ratio 1.8 snaps to 2:1 (identical to explicit 2:1)");
+        CHECK(d17 < 1e-6, "ratio 1.7 snaps to 1.5:1 (identical to explicit 1.5:1)");
     }
 
     // 21) pitch mix is independent of Mix L: at mix=30% the pitch line still comes through at pitchMix level

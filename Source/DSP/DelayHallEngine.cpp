@@ -6,16 +6,10 @@ namespace dsp {
 
 static float dbToLinear(float db) { return std::pow(10.0f, db / 20.0f); }
 
-// ratio has 4 discrete steps: 1.5:1, 2:1, 3:1, 4:1 (x the channel's main delay time)
+// ratio has discrete steps 1.5, 2, 2.5, 3, 3.5, 4 (x the channel's main delay time)
 static float snapRatio(float r) {
-    const float vals[4] = {1.5f, 2.0f, 3.0f, 4.0f};
-    float best = vals[0];
-    float bd = std::fabs(r - best);
-    for (int i = 1; i < 4; ++i) {
-        const float d = std::fabs(r - vals[i]);
-        if (d < bd) { bd = d; best = vals[i]; }
-    }
-    return best;
+    r = std::clamp(r, 1.5f, 4.0f);
+    return std::round(r * 2.0f) * 0.5f;
 }
 
 void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
@@ -290,7 +284,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             const bool onsetR = fastEnvR > 2.5f * refEnvR && fastEnvR > 0.005f;
             if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * atkG; else gateL *= (1.0f - relG);
             if (onsetR || fastEnvR > 0.01f) gateR += (1.0f - gateR) * atkG; else gateR *= (1.0f - relG);
-            const int refr = (int) (0.060f * sr); // 60 ms capture refractory
+            const int refr = (int) (0.150f * sr); // 150 ms capture refractory
             ++capTimerL;
             ++capTimerR;
             chL.push(wInL * gL);
