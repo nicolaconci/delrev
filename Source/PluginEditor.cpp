@@ -4,6 +4,8 @@ using namespace juce;
 
 StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoDelayHallAudioProcessor& p)
     : AudioProcessorEditor(&p), apvts(p.apvts) {
+    studioLookAndFeel = std::make_unique<StudioLookAndFeel>();
+    setLookAndFeel(studioLookAndFeel.get());
     struct KnobDef {
         const char* id;
         const char* name;
@@ -95,10 +97,24 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     setSize(1040, 470);
 }
 
-StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() = default;
+StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() {
+    setLookAndFeel(nullptr);
+}
 
 void StereoDelayHallAudioProcessorEditor::paint(Graphics& g) {
-    g.fillAll(Colour(0xff1e1e24));
+    StudioBackground::paintBrushedMetalPanel(g, getLocalBounds(), Colour(0xff2b2e34));
+    StudioBackground::paintRecessedSection(g, groupPre.getBounds());
+    StudioBackground::paintRecessedSection(g, groupLeft.getBounds());
+    StudioBackground::paintRecessedSection(g, groupRight.getBounds());
+    StudioBackground::paintRecessedSection(g, groupMaster.getBounds());
+    StudioBackground::paintRecessedSection(g, groupSmear.getBounds());
+    StudioBackground::paintRecessedSection(g, groupMod.getBounds());
+    StudioBackground::paintRecessedSection(g, groupRev.getBounds());
+    StudioBackground::paintRecessedSection(g, groupWet.getBounds());
+    StudioBackground::paintScrew(g, Rectangle<float>(8.0f, 8.0f, 14.0f, 14.0f));
+    StudioBackground::paintScrew(g, Rectangle<float>((float) getWidth() - 22.0f, 8.0f, 14.0f, 14.0f));
+    StudioBackground::paintScrew(g, Rectangle<float>(8.0f, (float) getHeight() - 22.0f, 14.0f, 14.0f));
+    StudioBackground::paintScrew(g, Rectangle<float>((float) getWidth() - 22.0f, (float) getHeight() - 22.0f, 14.0f, 14.0f));
 }
 
 void StereoDelayHallAudioProcessorEditor::resized() {

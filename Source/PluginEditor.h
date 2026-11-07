@@ -2,6 +2,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "PluginProcessor.h"
+#include "LookAndFeel/StudioLookAndFeel.h"
 
 class StereoDelayHallAudioProcessorEditor : public juce::AudioProcessorEditor {
 public:
@@ -27,6 +28,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> swellInputAttachment;
     juce::ToggleButton wetButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> wetAttachment;
+    std::unique_ptr<StudioLookAndFeel> studioLookAndFeel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StereoDelayHallAudioProcessorEditor)
 };

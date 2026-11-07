@@ -67,7 +67,8 @@ CMakeLists.txt                     CMake project; JUCE 8.0.4 fetched via FetchCo
 setup.sh                           one-command build + sign + install (macOS)
 Source/DSP/DelayHallEngine.{h,cpp} DSP core in plain C++ (no JUCE dependency, unit-testable)
 Source/PluginProcessor.{h,cpp}     AudioProcessor, 14 parameters (APVTS), bus layouts, state
-Source/PluginEditor.{h,cpp}        GUI: sectioned, colour-coded knobs + combo + toggle
+Source/PluginEditor.{h,cpp}        GUI: sectioned, colour-coded controls
+Source/LookAndFeel/StudioLookAndFeel.h   hardware-style LookAndFeel (procedural knobs, metal toggles, brushed panel)
 tests/dsp_test.cpp                 30 DSP unit tests, runnable without JUCE
 ```
 
