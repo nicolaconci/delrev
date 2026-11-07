@@ -17,6 +17,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     fastEnvL = fastEnvR = 0.0f;
     slowEnvL = slowEnvR = 0.0f;
     rampL = rampR = 1.0f;
+    swellTargetL = swellTargetR = 1.0f;
     onsetTimerL = onsetTimerR = 1 << 30;
     reverb.prepare(sr);
     EngineParams def;
@@ -133,8 +134,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         float gL = 1.0f, gR = 1.0f;
         const int S = (int) std::lround(swell * sr * 0.001f);
         if (S > 0) {
-            const int refractory = std::max(S, (int) (0.030f * sr)); // >= 30 ms between onsets
-            auto rampUp = [&](float in, float& fast, float& slow, float& ramp, int& sinceOnset) {
+            const int refractory = std::max(S, (int) (0.050f * sr)); // >= 50 ms between onsets
+            auto rampUp = [&](float in, float& fast, float& slow, float& ramp, float& target, int& sinceOnset) {
                 const float a = std::fabs(in);
                 const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
                 const float upS  = 1.0f - std::exp(-1.0f / (0.020f * sr)); // slow env attack  ~20 ms
@@ -142,15 +143,22 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 if (a > fast) fast = a; else fast += (a - fast) * relF;
                 if (a > slow) slow += (a - slow) * upS; else slow += (a - slow) * relS;
                 ++sinceOnset;
-                if (fast > 2.5f * slow && slow > 0.02f && sinceOnset > refractory) {
-                    ramp = 0.0f;
+                // marked transient only: fast energy jumps well above slow (3x),
+                // absolute level significant, refractory elapsed, previous swell done
+                if (fast > 3.0f * slow && slow > 0.05f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
+                    target = 0.0f;
                     sinceOnset = 0;
                 }
-                if (ramp < 1.0f) ramp += 1.0f / (float) S; // linear swell over S
+                if (target == 0.0f) {
+                    ramp -= 1.0f / (0.005f * sr); // click-free reset: 5 ms fade-out
+                    if (ramp <= 0.0f) { ramp = 0.0f; target = 1.0f; }
+                } else if (ramp < 1.0f) {
+                    ramp += 1.0f / (float) S;     // linear swell-in over S
+                }
                 return ramp;
             };
-            gL = rampUp(inL, fastEnvL, slowEnvL, rampL, onsetTimerL);
-            gR = rampUp(inR, fastEnvR, slowEnvR, rampR, onsetTimerR);
+            gL = rampUp(inL, fastEnvL, slowEnvL, rampL, swellTargetL, onsetTimerL);
+            gR = rampUp(inR, fastEnvR, slowEnvR, rampR, swellTargetR, onsetTimerR);
         }
 
         // smear | crystal: bipolar filter applied ONCE to the input entering the
@@ -231,6 +239,7 @@ void StereoDelayHallEngine::reset() {
     fastEnvL = fastEnvR = 0.0f;
     slowEnvL = slowEnvR = 0.0f;
     rampL = rampR = 1.0f;
+    swellTargetL = swellTargetR = 1.0f;
     onsetTimerL = onsetTimerR = 1 << 30;
     timeL = target.timeLms;
     timeR = target.timeRms;

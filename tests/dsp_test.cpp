@@ -400,15 +400,15 @@ int main() {
         const int burst = 1000;
         float pv = 0.0f;
         auto wet = run(100.0f, false, 1.0f);
-        peakIndex(wet, t + burst + 100, t + burst + S / 2, &pv);
+        peakIndex(wet, t + burst + 400, t + burst + S / 2, &pv);
         const float wetEarly = std::fabs(pv);
         peakIndex(wet, t + burst + S + 200, t + burst + 3000, &pv);
         const float wetLate = std::fabs(pv);
         auto dryOff = run(100.0f, false, 0.0f);
-        peakIndex(dryOff, burst + 100, burst + S / 2, &pv);
+        peakIndex(dryOff, burst + 400, burst + S / 2, &pv);
         const float dryOffEarly = std::fabs(pv);
         auto dryOn = run(100.0f, true, 0.0f);
-        peakIndex(dryOn, burst + 100, burst + S / 2, &pv);
+        peakIndex(dryOn, burst + 400, burst + S / 2, &pv);
         const float dryOnEarly = std::fabs(pv);
         peakIndex(dryOn, burst + S + 200, burst + 3000, &pv);
         const float dryOnLate = std::fabs(pv);
