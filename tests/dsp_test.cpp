@@ -669,6 +669,31 @@ int main() {
         CHECK(ePitch > 0.05 && eMain > 0.9f, "pitch line echoes at its own time (200 ms), main at 100 ms");
     }
 
+    // 21) pitch mix is independent of Mix L: at mix=30% the pitch line still comes through at pitchMix level
+    {
+        auto run = [&](float pitchMix) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 0.3f; p.mixR = 0.3f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.pitchL = 12.0f; p.pitchTimeLms = 100.0f; p.pitchMixL = pitchMix;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 30000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        auto off = run(0.0f);
+        auto on = run(1.0f);
+        // energy over the echo + pitch crossfade window (impulse gets smeared by the shifter)
+        const double eOff = sumAbs(off, t - 100, t + 2500);
+        const double eOn = sumAbs(on, t - 100, t + 2500);
+        std::printf("  pitchMix independence: energy mix-only %.3f, +pitchMix1 %.3f\n", eOff, eOn);
+        CHECK(eOn > 2.0 * eOff, "pitch line level independent of Mix L (comes through at pitchMix even at mix 30%)");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

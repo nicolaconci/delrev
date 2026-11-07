@@ -249,11 +249,11 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float ratioR = std::pow(2.0f, pitchR / 12.0f);
         float extraL = 0.0f, extraR = 0.0f;
         if (std::fabs(pitchL) >= 1.0f)
-            extraL = pitchMixL * plL.process(wInL * gL, ratioL, pitchTimeL * sr * 0.001f);
+            extraL = plL.process(wInL * gL, ratioL, pitchTimeL * sr * 0.001f);
         if (std::fabs(pitchR) >= 1.0f)
-            extraR = pitchMixR * plR.process(wInR * gR, ratioR, pitchTimeR * sr * 0.001f);
+            extraR = plR.process(wInR * gR, ratioR, pitchTimeR * sr * 0.001f);
 
-        float wL = dL + extraL, wR = dR + extraR;
+        float wL = dL, wR = dR;
 
         // tone: per-channel one-pole lowpass on the wet (bright vs dark delay);
         // at 100% the filter is bypassed (fully transparent)
@@ -293,8 +293,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
 
         const float dryL = target.swellOnInput ? inL * gL : inL;
         const float dryR = target.swellOnInput ? inR * gR : inR;
-        left[i] = ((1.0f - mixL) * dryL + mixL * wetL) * master;
-        right[i] = ((1.0f - mixR) * dryR + mixR * wetR) * master;
+        left[i] = (((1.0f - mixL) * dryL + mixL * wetL) + pitchMixL * extraL * wetGain) * master;
+        right[i] = (((1.0f - mixR) * dryR + mixR * wetR) + pitchMixR * extraR * wetGain) * master;
     }
 }
 
