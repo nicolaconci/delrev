@@ -82,16 +82,6 @@ Available in the DAW's program/preset menu: **Init** (defaults), **Double Rhythm
 L 220 / R 300 ms, smear −49, rev mix 35%), **Clean Wide** (L 280 / R 380 ms,
 swell 205 ms, crystal +33, rev mix 60%, width 150%).
 
-## v2 features (branch `essentia_v2`)
-
-- **Grit** (0–100 %, box SMEAR): tanh soft-clip distortion on the repeats
-- **Mod Vol** (0–100 %, default 100 %, small knob at the bottom of MOD): scales the LFO depth
-- **Pitch L / Pitch R** (−12..+12 semitones, step 1 st, small knobs at the bottom of LEFT/RIGHT,
-  centered at 12 o'clock, double-click = 0): extra pitch-shifted delay line per channel
-  (dual-tap crossfade shifter), mixed into the same wet pipeline; at 0 st the line is bypassed.
-  Each pitch line has its own **Pitch Time L/R** (20–2000 ms) and **Pitch Mix L/R** (level, default 50%, 0 = muted; applied AFTER Mix L/R, so the pitch lines stay audible independently of the dry/wet mix) —
-  small knobs next to Pitch at the bottom of LEFT/RIGHT — and inherits the channel's Tone; main Time L/R stays independent.
-
 ## Bus layouts
 
 stereo→stereo, **mono→stereo** (mono insert widens via independent L/R times),
