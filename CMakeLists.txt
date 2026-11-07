@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 
+# run on older Macs too (Catalina+); raise only if you need newer APIs
+set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version")
+
 project(StereoDelayHall VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
