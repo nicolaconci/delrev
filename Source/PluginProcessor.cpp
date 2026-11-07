@@ -78,10 +78,12 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("wetGain", "Wet Gain", {-12.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 0));
     addFloat("grit", "Grit", {0.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("%", 0));
     addFloat("modVol", "Mod Vol", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
-    NormalisableRange<float> pitchRange(0.25f, 4.0f, 0.01f);
-    pitchRange.setSkewForCentre(1.0f);
-    addFloat("pitchL", "Pitch L", pitchRange, 1.0f, makeRatioAttrs());
-    addFloat("pitchR", "Pitch R", pitchRange, 1.0f, makeRatioAttrs());
+    addFloat("pitchL", "Pitch L", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
+    addFloat("pitchR", "Pitch R", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
+    NormalisableRange<float> ratioRange(0.25f, 4.0f, 0.01f);
+    ratioRange.setSkewForCentre(1.0f);
+    addFloat("ratioL", "Ratio L", ratioRange, 1.0f, makeRatioAttrs());
+    addFloat("ratioR", "Ratio R", ratioRange, 1.0f, makeRatioAttrs());
     addFloat("pitchMixL", "Pitch Mix L", {0.0f, 100.0f, 0.1f}, 50.0f, makeAttrs("%", 0));
     addFloat("pitchMixR", "Pitch Mix R", {0.0f, 100.0f, 0.1f}, 50.0f, makeAttrs("%", 0));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
@@ -104,8 +106,8 @@ const std::vector<FactoryPreset>& factoryPresets() {
             {"modRate", 0.05f}, {"modDepth", 21.0f},
             {"revDecay", 6.0f}, {"revMix", 0.0f}, {"revWidth", 150.0f},
             {"wetGain", 0.0f}, {"wet100", 0.0f},
-            {"grit", 0.0f}, {"modVol", 100.0f}, {"pitchL", 1.0f}, {"pitchR", 1.0f},
-            {"pitchMixL", 50.0f}, {"pitchMixR", 50.0f},
+            {"grit", 0.0f}, {"modVol", 100.0f}, {"pitchL", 0.0f}, {"pitchR", 0.0f},
+            {"ratioL", 1.0f}, {"ratioR", 1.0f}, {"pitchMixL", 50.0f}, {"pitchMixR", 50.0f},
         }},
         { "Ambient", {
             {"preGain", 0.0f}, {"master", 0.0f},
@@ -115,8 +117,8 @@ const std::vector<FactoryPreset>& factoryPresets() {
             {"modRate", 0.05f}, {"modDepth", 5.0f},
             {"revDecay", 5.0f}, {"revMix", 35.0f}, {"revWidth", 150.0f},
             {"wetGain", 0.0f}, {"wet100", 0.0f},
-            {"grit", 0.0f}, {"modVol", 100.0f}, {"pitchL", 1.0f}, {"pitchR", 1.0f},
-            {"pitchMixL", 50.0f}, {"pitchMixR", 50.0f},
+            {"grit", 0.0f}, {"modVol", 100.0f}, {"pitchL", 0.0f}, {"pitchR", 0.0f},
+            {"ratioL", 1.0f}, {"ratioR", 1.0f}, {"pitchMixL", 50.0f}, {"pitchMixR", 50.0f},
         }},
         { "Clean Wide", {
             {"preGain", 0.0f}, {"master", 0.0f},
@@ -126,8 +128,8 @@ const std::vector<FactoryPreset>& factoryPresets() {
             {"modRate", 0.05f}, {"modDepth", 21.0f},
             {"revDecay", 6.0f}, {"revMix", 60.0f}, {"revWidth", 150.0f},
             {"wetGain", 0.0f}, {"wet100", 0.0f},
-            {"grit", 0.0f}, {"modVol", 100.0f}, {"pitchL", 1.0f}, {"pitchR", 1.0f},
-            {"pitchMixL", 50.0f}, {"pitchMixR", 50.0f},
+            {"grit", 0.0f}, {"modVol", 100.0f}, {"pitchL", 0.0f}, {"pitchR", 0.0f},
+            {"ratioL", 1.0f}, {"ratioR", 1.0f}, {"pitchMixL", 50.0f}, {"pitchMixR", 50.0f},
         }},
     };
     return presets;
@@ -163,6 +165,8 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     modVolParam = apvts.getRawParameterValue("modVol");
     pitchLParam = apvts.getRawParameterValue("pitchL");
     pitchRParam = apvts.getRawParameterValue("pitchR");
+    ratioLParam = apvts.getRawParameterValue("ratioL");
+    ratioRParam = apvts.getRawParameterValue("ratioR");
     pitchMixLParam = apvts.getRawParameterValue("pitchMixL");
     pitchMixRParam = apvts.getRawParameterValue("pitchMixR");
 }
@@ -220,6 +224,8 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.modVol = modVolParam->load() / 100.0f;
     p.pitchL = pitchLParam->load();
     p.pitchR = pitchRParam->load();
+    p.ratioL = ratioLParam->load();
+    p.ratioR = ratioRParam->load();
     p.pitchMixL = pitchMixLParam->load() / 100.0f;
     p.pitchMixR = pitchMixRParam->load() / 100.0f;
     if (wet100Param->load() > 0.5f) {
@@ -300,7 +306,7 @@ void StereoDelayHallAudioProcessor::setCurrentProgram(int index) {
         "preGain", "master", "mixL", "toneL", "mixR", "toneR", "feedbackL", "feedbackR",
         "smear", "swell", "swellInput", "timeL", "timeR", "modRate", "modDepth",
         "revDecay", "revMix", "revWidth", "wetGain", "wet100",
-        "grit", "modVol", "pitchL", "pitchR", "pitchMixL", "pitchMixR",
+        "grit", "modVol", "pitchL", "pitchR", "ratioL", "ratioR", "pitchMixL", "pitchMixR",
     };
     for (const char* id : ids) {
         auto* p = apvts.getParameter(id);

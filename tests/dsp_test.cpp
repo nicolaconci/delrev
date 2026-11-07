@@ -160,7 +160,8 @@ int main() {
         p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.95f; p.feedbackR = 0.95f; p.timeLms = 50.0f; p.timeRms = 37.0f;
         p.modRateHz = 10.0f; p.modDepthMs = 30.0f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
         p.grit = 1.0f; p.modVol = 0.7f; p.smear = 0.8f; p.swellMs = 100.0f;
-        p.pitchL = 0.5f; p.pitchR = 2.0f; p.pitchMixL = 0.8f; p.pitchMixR = 0.8f;
+        p.pitchL = 7.0f; p.pitchR = -12.0f; p.ratioL = 2.0f; p.ratioR = 0.5f;
+        p.pitchMixL = 0.8f; p.pitchMixR = 0.8f;
         e.setParams(p);
         std::vector<float> l(44100), r(44100);
         unsigned int seed = 12345;
@@ -627,15 +628,15 @@ int main() {
         CHECK(std::abs(pkOff - expL) <= 3, "modVol=0: no modulation");
     }
 
-    // 19) pitch ratio (ICE-style): ratio 1:2 (0.5) reads at 2x -> octave UP; 2:1 reads at 0.5x -> octave DOWN
+    // 19) pitch in semitones: +12 st reads at 2x -> octave UP; -12 st -> octave DOWN; 0 st = bypass
     {
-        auto run = [&](float ratio) {
+        auto run = [&](float pitchSt) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = ratio;
+            p.pitchL = pitchSt;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 0; i < 30000; ++i)
@@ -650,9 +651,9 @@ int main() {
             return c;
         };
         const int t = (int) (0.100 * sr);
-        auto base = run(1.0f);  // 1:1 = bypass
-        auto up = run(0.5f);    // 1:2 -> read rate 2 -> octave up
-        auto down = run(2.0f);  // 2:1 -> read rate 0.5 -> octave down
+        auto base = run(0.0f);   // 0 st = bypass
+        auto up = run(12.0f);    // +12 st -> read rate 2 -> octave up
+        auto down = run(-12.0f); // -12 st -> read rate 0.5 -> octave down
         // difference = only the extra pitch-shifted line (main echo identical in both runs)
         std::vector<float> diffUp(30000, 0.0f), diffDown(30000, 0.0f);
         for (int i = 0; i < 30000; ++i) {
@@ -662,9 +663,9 @@ int main() {
         const int zc0 = countZC(base, t + 500, t + 20000);
         const int zcUp = countZC(diffUp, t + 500, t + 20000);
         const int zcDown = countZC(diffDown, t + 500, t + 20000);
-        std::printf("  pitch ratio: zc main %d, 1:2 %d, 2:1 %d\n", zc0, zcUp, zcDown);
-        CHECK(zcUp > (int) (1.6 * zc0), "pitch 1:2: extra line ~doubles the frequency (octave up)");
-        CHECK(zcDown > 0 && zcDown < (int) (0.65 * zc0), "pitch 2:1: extra line ~halves the frequency (octave down)");
+        std::printf("  pitch st: zc main %d, +12st %d, -12st %d\n", zc0, zcUp, zcDown);
+        CHECK(zcUp > (int) (1.6 * zc0), "pitch +12 st: extra line ~doubles the frequency (octave up)");
+        CHECK(zcDown > 0 && zcDown < (int) (0.65 * zc0), "pitch -12 st: extra line ~halves the frequency (octave down)");
         // pitchMix = 0 -> extra line fully muted
         {
             StereoDelayHallEngine e;
@@ -672,7 +673,7 @@ int main() {
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = 0.5f; p.pitchMixL = 0.0f;
+            p.pitchL = 12.0f; p.pitchMixL = 0.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 0; i < 30000; ++i) l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
@@ -684,15 +685,15 @@ int main() {
         }
     }
 
-    // 20) pitch line time = ratio x main time: ratio 2:1 echoes around 2x the main delay time
+    // 20) ratio: pitch line time = ratio x main time (pitch active, ratio 2:1 -> echo around 200 ms)
     {
-        auto run = [&](float ratio) {
+        auto run = [&](float pitchSt, float ratio) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = ratio; p.pitchMixL = 1.0f;
+            p.pitchL = pitchSt; p.ratioL = ratio; p.pitchMixL = 1.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 1000; i < 9000; ++i) // burst 22..204 ms
@@ -700,8 +701,8 @@ int main() {
             e.process(l.data(), r.data(), 30000);
             return l;
         };
-        auto on = run(2.0f);   // 2:1 -> pitch line around 200 ms
-        auto off = run(1.0f);  // 1:1 -> bypass
+        auto on = run(12.0f, 2.0f);   // ratio 2:1 -> pitch line around 200 ms
+        auto off = run(0.0f, 1.0f);   // pitch 0 = bypass -> no extra line
         std::vector<float> diff(30000, 0.0f);
         for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - off[(size_t) i];
         const int t = (int) (0.100 * sr);   // main echo at 100 ms
@@ -712,7 +713,7 @@ int main() {
         std::printf("  pitch ratio time: main %.1f, diff before 200ms %.3f, around 200ms %.1f\n", eMain, eEarly, ePitch);
         CHECK(eMain > 100.0, "main echo of the burst at 100 ms");
         CHECK(eEarly < 0.05 * ePitch, "ratio 2:1: no pitch-line energy before ~2x main time");
-        CHECK(ePitch > 100.0, "ratio 2:1: extra line echoes around 2x the main time (200 ms)");
+        CHECK(ePitch > 100.0, "ratio 2:1: pitch line echoes around 2x the main time (200 ms)");
     }
 
     // 21) pitch mix is independent of Mix L: at mix=30% the pitch line still comes through at pitchMix level
@@ -723,7 +724,7 @@ int main() {
             EngineParams p;
             p.mixL = 0.3f; p.mixR = 0.3f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = 0.5f; p.pitchMixL = pitchMix;
+            p.pitchL = 12.0f; p.ratioL = 1.0f; p.pitchMixL = pitchMix;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 0; i < 30000; ++i)

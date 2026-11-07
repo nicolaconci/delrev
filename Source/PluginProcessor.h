@@ -64,6 +64,8 @@ private:
     std::atomic<float>* modVolParam = nullptr;
     std::atomic<float>* pitchLParam = nullptr;
     std::atomic<float>* pitchRParam = nullptr;
+    std::atomic<float>* ratioLParam = nullptr;
+    std::atomic<float>* ratioRParam = nullptr;
     std::atomic<float>* pitchMixLParam = nullptr;
     std::atomic<float>* pitchMixRParam = nullptr;
 

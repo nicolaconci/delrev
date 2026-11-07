@@ -28,8 +28,10 @@ struct EngineParams {
     float wetGainDb = 0.0f;   // gain on the wet path only (useful on aux buses at 100% wet)
     float grit = 0.0f;        // 0..1 soft-clip distortion on the repeats
     float modVol = 1.0f;      // 0..1 modulator (LFO) volume
-    float pitchL = 1.0f;      // extra line L time ratio vs main time (0.25..4, 1 = bypass); snapped to powers of 2
-    float pitchR = 1.0f;      // extra line R time ratio
+    float pitchL = 0.0f;      // extra line L pitch shift (semitones, -12..+12, 0 = bypass)
+    float pitchR = 0.0f;      // extra line R pitch shift (semitones)
+    float ratioL = 1.0f;      // extra line L time = ratio x main time (0.25..4, snapped to powers of 2)
+    float ratioR = 1.0f;      // extra line R time ratio
     float pitchMixL = 0.5f;   // extra line L level (0..1), applied post-mix (independent of Mix L)
     float pitchMixR = 0.5f;   // extra line R level
 };
@@ -187,7 +189,7 @@ private:
     float rampL = 1.0f, rampR = 1.0f;
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
-    float grit = 0.0f, modVol = 1.0f, pitchL = 1.0f, pitchR = 1.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
+    float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, ratioL = 1.0f, ratioR = 1.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
     float gateL = 0.0f, gateR = 0.0f; // pitch-line gate: opens at the transient, held while playing
     float gritInL = 0.0f, gritOutL = 0.0f, gritInR = 0.0f, gritOutR = 0.0f; // slow RMS follower: constant-volume grit
     PitchLine plL, plR;

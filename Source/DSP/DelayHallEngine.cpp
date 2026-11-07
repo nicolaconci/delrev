@@ -51,6 +51,8 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     modVol = def.modVol;
     pitchL = def.pitchL;
     pitchR = def.pitchR;
+    ratioL = def.ratioL;
+    ratioR = def.ratioR;
     pitchMixL = def.pitchMixL;
     pitchMixR = def.pitchMixR;
     gateL = gateR = 0.0f;
@@ -83,8 +85,10 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.wetGainDb = std::clamp(c.wetGainDb, -12.0f, 12.0f);
     c.grit = std::clamp(c.grit, 0.0f, 1.0f);
     c.modVol = std::clamp(c.modVol, 0.0f, 1.0f);
-    c.pitchL = std::clamp(c.pitchL, 0.25f, 4.0f);
-    c.pitchR = std::clamp(c.pitchR, 0.25f, 4.0f);
+    c.pitchL = std::clamp(c.pitchL, -12.0f, 12.0f);
+    c.pitchR = std::clamp(c.pitchR, -12.0f, 12.0f);
+    c.ratioL = std::clamp(c.ratioL, 0.25f, 4.0f);
+    c.ratioR = std::clamp(c.ratioR, 0.25f, 4.0f);
     c.pitchMixL = std::clamp(c.pitchMixL, 0.0f, 1.0f);
     c.pitchMixR = std::clamp(c.pitchMixR, 0.0f, 1.0f);
     target = c;
@@ -114,6 +118,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         modVol = c.modVol;
         pitchL = c.pitchL;
         pitchR = c.pitchR;
+        ratioL = c.ratioL;
+        ratioR = c.ratioR;
         pitchMixL = c.pitchMixL;
         pitchMixR = c.pitchMixR;
         paramsSnapped = true;
@@ -148,6 +154,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         modVol += (target.modVol - modVol) * smoothCoef;
         pitchL += (target.pitchL - pitchL) * smoothCoef;
         pitchR += (target.pitchR - pitchR) * smoothCoef;
+        ratioL += (target.ratioL - ratioL) * smoothCoef;
+        ratioR += (target.ratioR - ratioR) * smoothCoef;
         pitchMixL += (target.pitchMixL - pitchMixL) * smoothCoef;
         pitchMixR += (target.pitchMixR - pitchMixR) * smoothCoef;
 
@@ -245,14 +253,15 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         lineR.write(wInR * gR + feedbackR * dR);
         lineR.advance();
 
-        // extra pitch lines (ICE-style): ratio vs the main delay time, snapped to
-        // powers of 2; the line engages at the transient and is held while playing.
-        // ratio 1 = bypass. ratio R -> line time = R * main time, read rate = 1/R
-        // (R=2 -> one octave down at double time, R=0.5 -> one octave up at half time)
-        const float ratioL = std::pow(2.0f, std::round(std::log2(std::max(0.25f, pitchL))));
-        const float ratioR = std::pow(2.0f, std::round(std::log2(std::max(0.25f, pitchR))));
-        const float bypassL = (std::fabs(ratioL - 1.0f) < 0.01f) ? 0.0f : 1.0f;
-        const float bypassR = (std::fabs(ratioR - 1.0f) < 0.01f) ? 0.0f : 1.0f;
+        // extra pitch lines: pitch in semitones (read rate = 2^(st/12), 0 st = bypass),
+        // line time = ratio x main time (ratio snapped to powers of 2: 1:1, 2:1, 4:1, ...);
+        // the line engages at the transient and is held while playing
+        const float rL = std::pow(2.0f, std::round(std::log2(std::max(0.25f, ratioL))));
+        const float rR = std::pow(2.0f, std::round(std::log2(std::max(0.25f, ratioR))));
+        const float readRateL = std::pow(2.0f, pitchL / 12.0f);
+        const float readRateR = std::pow(2.0f, pitchR / 12.0f);
+        const float bypassL = (std::fabs(pitchL) < 0.01f) ? 0.0f : 1.0f;
+        const float bypassR = (std::fabs(pitchR) < 0.01f) ? 0.0f : 1.0f;
         // gate: on at transient (fast env jumps over its 15 ms reference), held while signal present
         {
             const float relG = 1.0f - std::exp(-1.0f / (0.300f * sr));
@@ -263,9 +272,9 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         }
         float extraL = 0.0f, extraR = 0.0f;
         if (bypassL > 0.0f)
-            extraL = plL.process(wInL * gL, 1.0f / ratioL, timeL * sr * 0.001f * ratioL);
+            extraL = plL.process(wInL * gL, readRateL, timeL * sr * 0.001f * rL);
         if (bypassR > 0.0f)
-            extraR = plR.process(wInR * gR, 1.0f / ratioR, timeR * sr * 0.001f * ratioR);
+            extraR = plR.process(wInR * gR, readRateR, timeR * sr * 0.001f * rR);
         extraL *= gateL;
         extraR *= gateR;
 
@@ -358,6 +367,8 @@ void StereoDelayHallEngine::reset() {
     modVol = target.modVol;
     pitchL = target.pitchL;
     pitchR = target.pitchR;
+    ratioL = target.ratioL;
+    ratioR = target.ratioR;
     pitchMixL = target.pitchMixL;
     pitchMixR = target.pitchMixR;
     gateL = gateR = 0.0f;
