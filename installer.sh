@@ -13,7 +13,7 @@ cd "$(dirname "$0")"
 
 BUILD_DIR=build
 ARTEFACTS="$BUILD_DIR/StereoDelayHall_artefacts/Release"
-VERSION="1.0.0"
+VERSION="2.0.0"
 ZIP_OUT="$BUILD_DIR/essentia-${VERSION}.zip"
 
 [ -d "$ARTEFACTS/VST3" ] || { echo "ERROR: build first (./setup.sh) - $ARTEFACTS not found"; exit 1; }
