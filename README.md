@@ -95,10 +95,10 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
     transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**.
     At each **transient** (onset detector, 60 ms refractory) the last 200 ms of the input
-    are captured and **held** (looped with a wide 50 ms crossfade at the wrap — wide windows
-    keep it glitch-free and pad-like — plus a ~5 ms fade-in at each capture to mask the loop
-    restart, and a smoothed echo offset so Time/Ratio changes glide instead of clicking);
-    the line is held while playing, with a 300 ms release
+    are captured and **held**: the loop read pointer is **crossfaded over to the transient
+    over 50 ms** (no jump, no click) and the loop itself wraps with a 50 ms crossfade;
+    the gate attack is a soft ~10 ms swell-like ramp (release 300 ms); the echo offset is
+    smoothed so Time/Ratio changes glide instead of clicking
   - **Ratio L/R** (echo time = multiple of the channel's main delay time, **4 discrete
     steps: `1.5:1`, `2:1`, `3:1`, `4:1`**, double-click = `2:1`): e.g. Time 200 ms →
     300 / 400 / 600 / 800 ms

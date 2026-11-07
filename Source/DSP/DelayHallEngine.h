@@ -62,41 +62,44 @@ private:
         inline float readCubic(float offset) const;
     };
 
-    // extra pitch line: at each transient the recent input (ring buffer) is "captured"
-    // (read pointer restarted at the transient, with a fade-in masking the jump), transposed
-    // by the pitch amount (read rate 2^(st/12)) and held (looped with a crossfade at the
-    // wrap); the held snippet is echoed through a delay line at ratio x main time
+    // extra pitch line: at each transient the recent input (ring buffer) is "captured":
+    // the loop read pointer is crossfaded over to the transient (no jump, no click),
+    // then transposed (read rate 2^(st/12)) and held (looped with a crossfade at the wrap);
+    // the held snippet is echoed through a delay line at ratio x main time
     struct CaptureHold {
         DelayLine line;          // echo line at ratio x main time
         std::vector<float> ring; // ring buffer with the last capLen input samples (loop source)
         int ringPos = 0;
         int capLen = 0;
-        float window = 0.0f;     // crossfade window at the loop wrap
-        float rp = 0.0f;         // loop read position
-        float fade = 1.0f;       // fade-in after a capture (masks the loop restart)
+        float window = 0.0f;     // crossfade window (loop wrap AND capture restart)
+        float rp = 0.0f;         // main loop read position
+        float rpX = 0.0f;        // crossfade target read position (set at each capture)
+        float blend = 1.0f;      // 1 = no crossfade in progress
         void prepare(double sr, int lineMaxSamples) {
             line.resize(lineMaxSamples);
             capLen = (int) std::ceil(0.200 * sr); // 200 ms capture/hold window (pad-like)
             ring.assign((size_t) capLen, 0.0f);
-            window = std::min(capLen * 0.5f, 0.050f * (float) sr); // 50 ms wrap crossfade (wide = smooth, no glitches)
+            window = std::min(capLen * 0.5f, 0.050f * (float) sr); // 50 ms crossfades (wide = smooth)
             ringPos = 0;
             rp = 0.0f;
-            fade = 1.0f;
+            rpX = 0.0f;
+            blend = 1.0f;
         }
         void clear() {
             line.clear();
             std::fill(ring.begin(), ring.end(), 0.0f);
             ringPos = 0;
             rp = 0.0f;
-            fade = 1.0f;
+            rpX = 0.0f;
+            blend = 1.0f;
         }
         inline void push(float x) {
             ring[(size_t) ringPos] = x;
             ringPos = (ringPos + 1) % capLen;
         }
-        inline void capture() { // restart the loop at the transient; the fade-in masks the jump
-            rp = (float) ((ringPos - 1 + capLen) % capLen); // newest sample = the transient
-            fade = 0.0f;
+        inline void capture() { // restart the loop at the transient, crossfaded over `window`
+            rpX = (float) ((ringPos - 1 + capLen) % capLen); // newest sample = the transient
+            blend = 0.0f;
         }
         inline float readAt(float pos) const {
             const int n = capLen;
@@ -107,15 +110,23 @@ private:
             const int i1 = (i0 + 1) % n;
             return ring[(size_t) i0] * (1.0f - f) + ring[(size_t) i1] * f;
         }
-        inline float play(float readRate) { // transpose + hold (loop), crossfaded at the wrap
-            rp += readRate;
-            if (rp >= (float) capLen) rp -= (float) capLen;
-            const float d = (float) capLen - rp;
+        inline float loopRead(float& pos, float rate) { // one loop pass, crossfaded at the wrap
+            pos += rate;
+            if (pos >= (float) capLen) pos -= (float) capLen;
+            const float d = (float) capLen - pos;
             float w = d / window;
             if (w > 1.0f) w = 1.0f;
-            const float out = w * readAt(rp) + (1.0f - w) * readAt(rp - (float) capLen);
-            fade += (1.0f - fade) * 0.004f; // ~5 ms fade-in after each capture (masks the loop restart)
-            return out * fade;
+            return w * readAt(pos) + (1.0f - w) * readAt(pos - (float) capLen);
+        }
+        inline float play(float readRate) { // transpose + hold; capture restart is crossfaded
+            const float a = loopRead(rp, readRate);
+            if (blend < 1.0f) {
+                const float b = loopRead(rpX, readRate);
+                blend += 1.0f / window;
+                if (blend >= 1.0f) { rp = rpX; return b; }
+                return a * (1.0f - blend) + b * blend;
+            }
+            return a;
         }
     };
 
