@@ -20,7 +20,9 @@ buses. Shown as **essentia** in DAWs (file/target names remain `StereoDelayHall.
 ## Quick start (clone → setup → done)
 
 ```sh
-git clone https://github.com/nicolaconci/delrev.git   # or: gh repo clone nicolaconci/delrev
+# v2 branch (this README):                v1 lives on the default branch `essentia`
+git clone -b essentia_v2 https://github.com/nicolaconci/delrev.git
+# or: gh repo clone nicolaconci/delrev && cd delrev && git checkout essentia_v2
 cd delrev
 ./setup.sh
 ```
@@ -58,17 +60,25 @@ purple / teal / white).
 | LEFT    | Time L          | 20–2000 ms        | 375 ms  | left delay time (log scale)                                    |
 | LEFT    | Feedback L      | 0–95 %            | 35 %    | left feedback (recirculating, pre-reverb)                      |
 | LEFT    | Tone L          | 0–100 %           | 100 %   | left wet lowpass: 100% bright (~18 kHz, bypass), 0% dark (~300 Hz) |
-| LEFT    | Mix L           | 0–100 %           | 30 %    | left dry/wet                                                   |
+| LEFT    | Mix L           | 0–100 %           | 30 %    | left dry/wet — master of the left branch (pitch included)      |
 | RIGHT   | Time R          | 20–2000 ms        | 500 ms  | right delay time (independent)                                 |
 | RIGHT   | Feedback R      | 0–95 %            | 35 %    | right feedback (independent)                                   |
 | RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
-| RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
+| RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet — master of the right branch (pitch included)    |
+| LEFT    | Pitch L         | -12..+12 st       | 0 st    | pitch line transpose (small knob; 0 st = bypass)               |
+| LEFT    | Ratio L         | 1.5:1..4:1 (6 steps) | 2:1  | pitch line echo time = ratio × Time L (small knob, discrete)  |
+| LEFT    | Pitch Mix L     | 0–100 %           | 50 %    | pitch level within the branch (= Mix L × Pitch Mix L)          |
+| RIGHT   | Pitch R         | -12..+12 st       | 0 st    | pitch line transpose (small knob; 0 st = bypass)               |
+| RIGHT   | Ratio R         | 1.5:1..4:1 (6 steps) | 2:1  | pitch line echo time = ratio × Time R (small knob, discrete)  |
+| RIGHT   | Pitch Mix R     | 0–100 %           | 50 %    | pitch level within the branch (= Mix R × Pitch Mix R)          |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
 | DYNAMICS | Smear | Crystal | -100..+100 %      | 0 %     | bipolar, applied once to the delay-line input: center off; CCW smear (lowpass); CW crystal (highpass + attack transient + gain compensation) |
 | DYNAMICS | Swell           | 0–500 ms          | 0 ms    | volume swell-in per repeat (onset detector, time ramp)         |
 | DYNAMICS | On Input (toggle) | on/off          | off     | also apply the swell to the dry input signal                   |
+| DYNAMICS | Grit            | 0–100 %           | 0 %     | tanh saturation on the repeats, constant loudness (100% = raw 80%) |
 | MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed on delay time (log scale), anti-phase L/R            |
 | MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
+| MOD     | Vol             | 0–100 %           | 100 %   | LFO depth scale (small knob, bottom of MOD)                    |
 | REV     | Decay           | 0.2–10 s          | 3 s     | hall decay, RT60-mapped (log scale)                            |
 | REV     | Mix             | 0–100 %           | 35 %    | reverb amount on the repeats only                              |
 | REV     | Width           | 0–200 %           | 100 %   | reverb tail width (M/S): 0% mono, 100% full stereo, 200% extra wide |
