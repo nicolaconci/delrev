@@ -279,10 +279,10 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         // gate + capture trigger share the onset detector: on at the transient, held while playing
         {
             const float relG = 1.0f - std::exp(-1.0f / (0.300f * sr));
-            // swell-like gate attack, slower at high pitch (readRate up to 2 at +12 st):
-            // attack time = 10 ms x readRate, clamped to 5..40 ms
-            const float atkL = 1.0f - std::exp(-1.0f / (std::clamp(10.0f * readRateL, 5.0f, 40.0f) * 0.001f * sr));
-            const float atkR = 1.0f - std::exp(-1.0f / (std::clamp(10.0f * readRateR, 5.0f, 40.0f) * 0.001f * sr));
+            // long swell-like gate attack, slower at high pitch (readRate up to 2 at +12 st):
+            // attack time = 20 ms x readRate, clamped to 10..80 ms (~40 ms at +12 st)
+            const float atkL = 1.0f - std::exp(-1.0f / (std::clamp(20.0f * readRateL, 10.0f, 80.0f) * 0.001f * sr));
+            const float atkR = 1.0f - std::exp(-1.0f / (std::clamp(20.0f * readRateR, 10.0f, 80.0f) * 0.001f * sr));
             const bool onsetL = fastEnvL > 2.5f * refEnvL && fastEnvL > 0.005f;
             const bool onsetR = fastEnvR > 2.5f * refEnvR && fastEnvR > 0.005f;
             if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * atkL; else gateL *= (1.0f - relG);

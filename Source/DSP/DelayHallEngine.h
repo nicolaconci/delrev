@@ -90,7 +90,7 @@ private:
             cap[0].assign((size_t) ringLen, 0.0f);
             cap[1].assign((size_t) ringLen, 0.0f);
             capLoopLen = (float) capLen;
-            window = std::min(capLen * 0.5f, 0.080f * (float) sr); // 80 ms crossfades (wide = smooth)
+            window = std::min(capLen * 0.5f, 0.100f * (float) sr); // 100 ms crossfades (max = half the 200 ms loop; very smooth)
             ringPos = 0;
             capCur = 0;
             refresh = 0;

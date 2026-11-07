@@ -95,13 +95,13 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
     transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**.
     At each **transient** (onset detector, 150 ms refractory) the last 200 ms of the input
-    are **frozen and held** (double-buffered, crossfaded over 80 ms on swap — no jump, no
-    click; the loop itself wraps with an 80 ms crossfade). The loop **period is fixed at
+    are **frozen and held** (double-buffered, crossfaded over 100 ms on swap — no jump, no
+    click; the loop itself wraps with a 100 ms crossfade, half the loop). The loop **period is fixed at
     200 ms regardless of pitch**: at higher pitch a longer slice (200 ms × `2^(st/12)`) is
     captured and read faster, so the hold always lasts 200 ms while sounding transposed.
     Capture refractory 150 ms, plus a periodic re-capture every 200 ms so sustained notes
-    stay alive. The gate attack is a soft swell-like ramp that scales with pitch
-    (~10 ms × read rate, 5–40 ms — slower at +12 st, where attacks would be most marked;
+    stay alive. The gate attack is a long swell-like ramp that scales with pitch
+    (~20 ms × read rate, 10–80 ms — ~40 ms at +12 st, where attacks would be most marked;
     release 300 ms); the echo offset is smoothed so Time/Ratio changes glide instead of
     clicking
   - **Ratio L/R** (echo time = multiple of the channel's main delay time, **6 discrete
