@@ -62,25 +62,38 @@ private:
         inline float readCubic(float offset) const;
     };
 
-    // extra pitch line: at each transient the recent input (ring buffer) is "captured":
-    // the loop read pointer is crossfaded over to the transient (no jump, no click),
-    // then transposed (read rate 2^(st/12)) and held (looped with a crossfade at the wrap);
-    // the held snippet is echoed through a delay line at ratio x main time
+    // extra pitch line: at each transient the recent input (ring buffer) is frozen into a
+    // capture buffer and held (looped). The loop PERIOD is fixed at capLen (200 ms) regardless
+    // of pitch: at higher pitch a longer slice of input is captured and read faster, so the
+    // output loop still lasts 200 ms while sounding transposed (read rate 2^(st/12)).
+    // The loop read pointer is crossfaded over to the transient on capture (no jump, no click).
+    // The held snippet is echoed through a delay line at ratio x main time.
     struct CaptureHold {
-        DelayLine line;          // echo line at ratio x main time
-        std::vector<float> ring; // ring buffer with the last capLen input samples (loop source)
+        DelayLine line;            // echo line at ratio x main time
+        std::vector<float> ring;   // ring buffer, last ringLen input samples (history)
+        std::vector<float> cap[2]; // frozen captures, double-buffered for crossfaded swaps
         int ringPos = 0;
-        int capLen = 0;
-        float window = 0.0f;     // crossfade window (loop wrap AND capture restart)
-        float rp = 0.0f;         // main loop read position
-        float rpX = 0.0f;        // crossfade target read position (set at each capture)
-        float blend = 1.0f;      // 1 = no crossfade in progress
+        int ringLen = 0;           // ring size = 2 x capLen (max read rate 2 at +12 st)
+        int capLen = 0;            // base hold window = 200 ms (fixed loop period)
+        float capLoopLen = 0.0f;   // active capture length in samples (capLen x readRate)
+        int capCur = 0;
+        int refresh = 0;           // periodic re-capture counter (keeps sustained notes alive)
+        float window = 0.0f;       // crossfade window (loop wrap AND capture swap)
+        float rp = 0.0f;           // main loop read position
+        float rpX = 0.0f;          // crossfade target read position
+        float blend = 1.0f;        // 1 = no crossfade in progress
         void prepare(double sr, int lineMaxSamples) {
             line.resize(lineMaxSamples);
-            capLen = (int) std::ceil(0.200 * sr); // 200 ms capture/hold window (pad-like)
-            ring.assign((size_t) capLen, 0.0f);
-            window = std::min(capLen * 0.5f, 0.080f * (float) sr); // 80 ms crossfades (wide = smooth, no glitches)
+            capLen = (int) std::ceil(0.200 * sr);  // 200 ms fixed hold/loop period
+            ringLen = 2 * capLen;                  // room for readRate up to 2 (+12 st)
+            ring.assign((size_t) ringLen, 0.0f);
+            cap[0].assign((size_t) ringLen, 0.0f);
+            cap[1].assign((size_t) ringLen, 0.0f);
+            capLoopLen = (float) capLen;
+            window = std::min(capLen * 0.5f, 0.080f * (float) sr); // 80 ms crossfades (wide = smooth)
             ringPos = 0;
+            capCur = 0;
+            refresh = 0;
             rp = 0.0f;
             rpX = 0.0f;
             blend = 1.0f;
@@ -88,42 +101,54 @@ private:
         void clear() {
             line.clear();
             std::fill(ring.begin(), ring.end(), 0.0f);
+            std::fill(cap[0].begin(), cap[0].end(), 0.0f);
+            std::fill(cap[1].begin(), cap[1].end(), 0.0f);
             ringPos = 0;
+            capCur = 0;
+            refresh = 0;
+            capLoopLen = (float) capLen;
             rp = 0.0f;
             rpX = 0.0f;
             blend = 1.0f;
         }
         inline void push(float x) {
             ring[(size_t) ringPos] = x;
-            ringPos = (ringPos + 1) % capLen;
+            ringPos = (ringPos + 1) % ringLen;
         }
-        inline void capture() { // restart the loop at the transient, crossfaded over `window`
-            rpX = (float) ((ringPos - 1 + capLen) % capLen); // newest sample = the transient
+        // freeze the last capLen*readRate samples into the other buffer; the loop period in the
+        // OUTPUT stays capLen (fixed 200 ms). atTransient also restarts the read at the attack.
+        inline void capture(bool atTransient, float readRate) {
+            capLoopLen = std::max((float) capLen * 0.5f, (float) capLen * readRate);
+            const int n = (int) std::lround(capLoopLen);
+            const int nxt = 1 - capCur;
+            for (int i = 0; i < n; ++i)
+                cap[(size_t) nxt][(size_t) i] = ring[(size_t) ((ringPos - n + i + 2 * ringLen) % ringLen)];
+            rpX = atTransient ? (float) (n - 1) : rp;
             blend = 0.0f;
         }
-        inline float readAt(float pos) const {
-            const int n = capLen;
+        inline float readAt(const std::vector<float>& buf, float pos) const {
+            const int n = (int) std::lround(capLoopLen);
             double p = std::fmod((double) pos, (double) n);
             if (p < 0.0) p += (double) n;
             const int i0 = (int) p;
             const float f = (float) (p - (double) i0);
             const int i1 = (i0 + 1) % n;
-            return ring[(size_t) i0] * (1.0f - f) + ring[(size_t) i1] * f;
+            return buf[(size_t) i0] * (1.0f - f) + buf[(size_t) i1] * f;
         }
-        inline float loopRead(float& pos, float rate) { // one loop pass, crossfaded at the wrap
+        inline float loopRead(const std::vector<float>& buf, float& pos, float rate) {
             pos += rate;
-            if (pos >= (float) capLen) pos -= (float) capLen;
-            const float d = (float) capLen - pos;
+            if (pos >= capLoopLen) pos -= capLoopLen;
+            const float d = capLoopLen - pos;
             float w = d / window;
             if (w > 1.0f) w = 1.0f;
-            return w * readAt(pos) + (1.0f - w) * readAt(pos - (float) capLen);
+            return w * readAt(buf, pos) + (1.0f - w) * readAt(buf, pos - capLoopLen);
         }
-        inline float play(float readRate) { // transpose + hold; capture restart is crossfaded
-            const float a = loopRead(rp, readRate);
+        inline float play(float readRate) { // transpose + hold; capture swap is crossfaded
+            const float a = loopRead(cap[(size_t) capCur], rp, readRate);
             if (blend < 1.0f) {
-                const float b = loopRead(rpX, readRate);
+                const float b = loopRead(cap[(size_t) (1 - capCur)], rpX, readRate);
                 blend += 1.0f / window;
-                if (blend >= 1.0f) { rp = rpX; return b; }
+                if (blend >= 1.0f) { capCur = 1 - capCur; rp = rpX; return b; }
                 return a * (1.0f - blend) + b * blend;
             }
             return a;

@@ -95,14 +95,19 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
     transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**.
     At each **transient** (onset detector, 150 ms refractory) the last 200 ms of the input
-    are captured and **held**: the loop read pointer is **crossfaded over to the transient
-    over 80 ms** (no jump, no click) and the loop itself wraps with an 80 ms crossfade;
-    capture refractory 150 ms; the gate attack is a soft ~10 ms swell-like ramp
-    (release 300 ms); the echo offset is smoothed so Time/Ratio changes glide instead of
+    are **frozen and held** (double-buffered, crossfaded over 80 ms on swap — no jump, no
+    click; the loop itself wraps with an 80 ms crossfade). The loop **period is fixed at
+    200 ms regardless of pitch**: at higher pitch a longer slice (200 ms × `2^(st/12)`) is
+    captured and read faster, so the hold always lasts 200 ms while sounding transposed.
+    Capture refractory 150 ms, plus a periodic re-capture every 200 ms so sustained notes
+    stay alive. The gate attack is a soft swell-like ramp that scales with pitch
+    (~10 ms × read rate, 5–40 ms — slower at +12 st, where attacks would be most marked;
+    release 300 ms); the echo offset is smoothed so Time/Ratio changes glide instead of
     clicking
   - **Ratio L/R** (echo time = multiple of the channel's main delay time, **6 discrete
     steps: `1.5:1`, `2:1`, `2.5:1`, `3:1`, `3.5:1`, `4:1`** — the knob moves in discrete
-    steps, double-click = `2:1`): e.g. Time 200 ms → 300 / 400 / 500 / 600 / 700 / 800 ms
+    steps evenly spread over its rotation (no skew), double-click = `2:1`):
+    e.g. Time 200 ms → 300 / 400 / 500 / 600 / 700 / 800 ms
   - **Pitch Mix L/R** (level, default 50 %): applied AFTER the pitch line's own reverb,
     so **at 0 the pitch is completely silent** (dry and tail — output identical to bypass);
     it is also independent of Mix L/R

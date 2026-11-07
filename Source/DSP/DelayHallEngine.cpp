@@ -279,18 +279,23 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         // gate + capture trigger share the onset detector: on at the transient, held while playing
         {
             const float relG = 1.0f - std::exp(-1.0f / (0.300f * sr));
-            const float atkG = 1.0f - std::exp(-1.0f / (0.010f * sr)); // ~10 ms attack: swell-like onset on the pitch line
+            // swell-like gate attack, slower at high pitch (readRate up to 2 at +12 st):
+            // attack time = 10 ms x readRate, clamped to 5..40 ms
+            const float atkL = 1.0f - std::exp(-1.0f / (std::clamp(10.0f * readRateL, 5.0f, 40.0f) * 0.001f * sr));
+            const float atkR = 1.0f - std::exp(-1.0f / (std::clamp(10.0f * readRateR, 5.0f, 40.0f) * 0.001f * sr));
             const bool onsetL = fastEnvL > 2.5f * refEnvL && fastEnvL > 0.005f;
             const bool onsetR = fastEnvR > 2.5f * refEnvR && fastEnvR > 0.005f;
-            if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * atkG; else gateL *= (1.0f - relG);
-            if (onsetR || fastEnvR > 0.01f) gateR += (1.0f - gateR) * atkG; else gateR *= (1.0f - relG);
+            if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * atkL; else gateL *= (1.0f - relG);
+            if (onsetR || fastEnvR > 0.01f) gateR += (1.0f - gateR) * atkR; else gateR *= (1.0f - relG);
             const int refr = (int) (0.150f * sr); // 150 ms capture refractory
             ++capTimerL;
             ++capTimerR;
             chL.push(wInL * gL);
             chR.push(wInR * gR);
-            if (onsetL && capTimerL > refr) { chL.capture(); capTimerL = 0; }
-            if (onsetR && capTimerR > refr) { chR.capture(); capTimerR = 0; }
+            if (onsetL && capTimerL > refr) { chL.capture(true, readRateL); capTimerL = 0; }
+            else if (++chL.refresh >= chL.capLen) { chL.capture(false, readRateL); chL.refresh = 0; } // keep sustained notes alive
+            if (onsetR && capTimerR > refr) { chR.capture(true, readRateR); capTimerR = 0; }
+            else if (++chR.refresh >= chR.capLen) { chR.capture(false, readRateR); chR.refresh = 0; }
         }
         // pitch-line delay offsets are smoothed: changing Time or Ratio glides instead of jumping
         const float maxPOff = (float) (chL.line.buf.size() - 4);

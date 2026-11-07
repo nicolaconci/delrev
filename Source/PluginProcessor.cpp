@@ -93,8 +93,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("modVol", "Mod Vol", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
     addFloat("pitchL", "Pitch L", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
     addFloat("pitchR", "Pitch R", {-12.0f, 12.0f, 1.0f}, 0.0f, makeAttrs("st", 0));
-    NormalisableRange<float> ratioRange(1.5f, 4.0f, 0.5f); // interval 0.5 -> the knob moves in discrete steps
-    ratioRange.setSkewForCentre(2.0f);
+    NormalisableRange<float> ratioRange(1.5f, 4.0f, 0.5f); // interval 0.5, no skew -> 6 steps evenly spread on the knob
     addFloat("ratioL", "Ratio L", ratioRange, 2.0f, makeRatioAttrs());
     addFloat("ratioR", "Ratio R", ratioRange, 2.0f, makeRatioAttrs());
     addFloat("pitchMixL", "Pitch Mix L", {0.0f, 100.0f, 0.1f}, 50.0f, makeAttrs("%", 0));

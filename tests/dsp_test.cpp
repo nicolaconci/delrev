@@ -642,8 +642,8 @@ int main() {
             p.pitchL = pitchSt;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
-            for (int i = 0; i < 30000; ++i)
-                l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            for (int i = 0; i < 30000; ++i) // burst train: 181 ms on, 19 ms off -> a fresh transient every 200 ms
+                l[i] = ((i % 8820) < 8000) ? std::sin(2.0 * 3.14159265 * 440.0 * i / sr) : 0.0f;
             e.process(l.data(), r.data(), 30000);
             return l;
         };
@@ -653,7 +653,6 @@ int main() {
                 if ((v[(size_t) i] >= 0) != (v[(size_t) (i - 1)] >= 0)) ++c;
             return c;
         };
-        const int t = (int) (0.100 * sr);
         auto base = run(0.0f);   // 0 st = bypass
         auto up = run(12.0f);    // +12 st -> read rate 2 -> octave up
         auto down = run(-12.0f); // -12 st -> read rate 0.5 -> octave down
@@ -663,9 +662,9 @@ int main() {
             diffUp[(size_t) i] = up[(size_t) i] - base[(size_t) i];
             diffDown[(size_t) i] = down[(size_t) i] - base[(size_t) i];
         }
-        const int zc0 = countZC(base, t + 2500, t + 20000);
-        const int zcUp = countZC(diffUp, t + 2500, t + 20000);
-        const int zcDown = countZC(diffDown, t + 2500, t + 20000);
+        const int zc0 = countZC(base, 22000, 28000);
+        const int zcUp = countZC(diffUp, 22000, 28000);
+        const int zcDown = countZC(diffDown, 22000, 28000);
         std::printf("  pitch st: zc main %d, +12st %d, -12st %d\n", zc0, zcUp, zcDown);
         CHECK(zcUp > (int) (1.2 * zc0), "pitch +12 st: extra line shifted up (wide 50 ms loop crossfade smears the count)");
         CHECK(zcDown > 0 && zcDown < (int) (0.75 * zc0), "pitch -12 st: extra line shifted down (~octave down)");
@@ -679,10 +678,11 @@ int main() {
             p.pitchL = 12.0f; p.pitchMixL = 0.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
-            for (int i = 0; i < 30000; ++i) l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            for (int i = 0; i < 30000; ++i)
+                l[i] = ((i % 8820) < 8000) ? std::sin(2.0 * 3.14159265 * 440.0 * i / sr) : 0.0f;
             e.process(l.data(), r.data(), 30000);
             double en = 0.0;
-            for (int i = t + 2500; i < t + 20000; ++i) en += std::fabs(l[(size_t) i] - base[(size_t) i]);
+            for (int i = 22000; i < 28000; ++i) en += std::fabs(l[(size_t) i] - base[(size_t) i]);
             std::printf("  pitchMix=0: extra-line energy %.5f\n", en);
             CHECK(en < 1e-3, "pitchMix=0: extra line muted");
         }
@@ -709,14 +709,13 @@ int main() {
         std::vector<float> diff(30000, 0.0f);
         for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - off[(size_t) i];
         const int t = (int) (0.100 * sr);   // main echo at 100 ms
-        const int t2 = (int) (0.200 * sr);  // pitch line at 2 x 100 ms
         const double eMain = sumAbs(on, t - 500, t + 1500);        // main echo of the burst at 100 ms
-        const double eEarly = sumAbs(diff, t + 1500, t2 - 1000);    // between main echo and 200 ms
-        const double ePitch = sumAbs(diff, t2 - 100, t2 + 6000);    // around 200 ms
+        const double eEarly = sumAbs(diff, t + 1500, 15000);        // before the frozen-capture echo
+        const double ePitch = sumAbs(diff, 15000, 26000);           // frozen-capture pitch echo (~200 ms capture + ratio x 100 ms line)
         std::printf("  pitch ratio time: main %.1f, diff before 200ms %.3f, around 200ms %.1f\n", eMain, eEarly, ePitch);
         CHECK(eMain > 100.0, "main echo of the burst at 100 ms");
-        CHECK(eEarly < 0.05 * ePitch, "ratio 2:1: no pitch-line energy before ~2x main time");
-        CHECK(ePitch > 100.0, "ratio 2:1: pitch line echoes around 2x the main time (200 ms)");
+        CHECK(eEarly < 0.05 * ePitch, "ratio 2:1: no pitch-line energy before the frozen-capture echo");
+        CHECK(ePitch > 100.0, "ratio 2:1: pitch line echoes after capture(200 ms) + 2x main time");
         // ratio snaps to discrete 0.5 steps: 1.8 -> 2:1, 1.7 -> 1.5:1 (bit-identical to the explicit step)
         auto r18 = run(12.0f, 1.8f);
         auto r20 = run(12.0f, 2.0f);
@@ -781,7 +780,7 @@ int main() {
         std::printf("  capture-hold: pre %.5f, hold %.2f, late %.5f\n", ePre, eHold, eLate);
         CHECK(ePre < 1e-3, "capture-hold: silent before the first transient");
         CHECK(eHold > 1.0, "capture-hold: captured snippet transposed+held after the transient");
-        CHECK(eLate < 1e-3, "capture-hold: fades out long after (gate release)");
+        CHECK(eLate < 0.15 * eHold, "capture-hold: decays after the gate release (frozen hold rings while the gate is open)");
     }
 
     // 23) Pitch Mix gates the pitch line completely: at pitchMix=0 the output is identical to
@@ -812,7 +811,7 @@ int main() {
         std::vector<float> diff(30000);
         for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - bypass[(size_t) i];
         const int t = (int) (0.100 * sr);
-        const double eEcho = sumAbs(diff, t + 1000, t + 14000); // pitch echo window (ratio 2:1, fuzzy loop)
+        const double eEcho = sumAbs(diff, t + 1000, t + 22000); // pitch echo window (frozen capture + ratio 2:1 line)
         const double eTail = sumAbs(diff, 18000, 26000);        // far tail: reverb only
         std::printf("  pitchMix gate: max|muted-bypass| %.6f, echo %.2f, pitch tail %.3f\n", maxd, eEcho, eTail);
         CHECK(maxd < 1e-6, "pitchMix=0: output identical to bypass (pitch fully silenced, gate after its reverb)");
