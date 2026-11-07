@@ -37,7 +37,7 @@ purple / teal).
 | RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
 | RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
-| ATTACK  | Attack          | 0–50 ms           | 0 ms    | fade-in per repeat (amplitude envelope on the wet, not a lowpass) |
+| ATTACK  | Attack          | 0–100 ms          | 0 ms    | fade-in per repeat: pure time ramp on the delay-line input (onset detector), no distortion |
 | ATTACK  | Curve (combo)   | Linear / Log / Exp | Linear | ramp shape: Log = fast start, Exp = slow start                  |
 | MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                          |
 | MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
