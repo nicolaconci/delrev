@@ -1,4 +1,4 @@
-# essentia
+# essentia v2 (branch `essentia_v2`)
 
 Audio plugin (**VST3 + Audio Unit on macOS**, plus a Standalone app) — a
 **stereo delay** with independent left/right delay times, feedback, tone and
@@ -7,7 +7,7 @@ time modulation, and a **hall reverb fed only by the delay repeats** (every
 repeat gets its own reverb tail). Works on any source — guitar, vocals, synths,
 buses. Shown as **essentia** in DAWs (file/target names remain `StereoDelayHall.*`).
 
-![essentia UI](docs/essentia-screenshot.jpg)
+![essentia v2 UI](docs/essentia-v2-screenshot.png)
 
 ## Requirements
 
@@ -28,16 +28,16 @@ cd delrev
 `./setup.sh` (run from the repo root) fetches JUCE, builds VST3 + AU +
 Standalone, runs the DSP unit tests, signs the bundles (ad-hoc), installs them
 into `~/Library/Audio/Plug-Ins/` (overwriting any previous install), and builds
-the distributable zip `build/essentia-1.0.0.zip`. Then restart your DAW (or
+the distributable zip `build/essentia-2.0.0.zip`. Then restart your DAW (or
 `killall -9 AudioComponentRegistrar`) and look for **essentia** in the effects.
 
 ## Install on another Mac (from the zip)
 
-Copy `build/essentia-1.0.0.zip` to the other Mac, then:
+Copy `build/essentia-2.0.0.zip` to the other Mac, then:
 
 ```sh
-unzip essentia-1.0.0.zip
-cd essentia-1.0.0
+unzip essentia-2.0.0.zip
+cd essentia-2.0.0
 ./install.sh     # installs VST3 + AU into ~/Library/Audio/Plug-Ins (user domain)
 ```
 
@@ -115,8 +115,8 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   The pitch line has its own hall reverb (same Decay/Width) and skips Tone/Grit, which
   act on the main repeats only; the shared main reverb is fed by the main repeats only;
   main Time L/R stays independent.
-- All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
-  show the ratio text (`1:2`, `1:1`, `2:1`, …).
+- All knob value labels are integers, except **Mod Rate** (2 decimals below 1 Hz, 1 above);
+  the ratio knobs show the step text (`1.5:1`, `2:1`, `2.5:1`, `3:1`, `3.5:1`, `4:1`).
 
 v2 signal flow: `out = ((1-mix)·dry + mix·wet + mix·pitchMix·(pitchEcho + revMix·pitchTail)·wetGain) · master`
 (Mix L/R is the branch master, pitch included),
@@ -137,7 +137,7 @@ channel below 0.1% of left) and duplicates it.
 ```
 CMakeLists.txt                        CMake project; JUCE 8.0.4 via FetchContent
 setup.sh                              one-command build + test + install + zip
-installer.sh                          builds build/essentia-1.0.0.zip (bundles + install.sh)
+installer.sh                          builds build/essentia-2.0.0.zip (bundles + install.sh)
 Source/DSP/DelayHallEngine.{h,cpp}    DSP core in plain C++ (no JUCE, unit-testable)
 Source/PluginProcessor.{h,cpp}        AudioProcessor, parameters (APVTS), bus layouts, state
 Source/PluginEditor.{h,cpp}           GUI: sectioned controls
@@ -145,15 +145,18 @@ Source/LookAndFeel/StudioLookAndFeel.h  hardware-style LookAndFeel (procedural k
 tests/dsp_test.cpp                    DSP unit tests, runnable without JUCE
 ```
 
-Signal flow (per sample, per channel):
+Signal flow (v2, per sample, per channel):
 
 ```
-input ─► [pre gain] ─┬────────────────────────────► dry ──────────────────────┐
-                     │                                                       ├─► out = ((1-mix)*dry + mix*wet) * master
-                     └─► [delay line + feedback L/R] ─► d ─► [smear|crystal + swell] ─► w ─┐
-                                              │                                            ├─► wet = w*wetGain + revMix*tail
-                                              └─► hall reverb (fed by w only) ─► tail ────┘
-                                                              (tail width via M/S)
+input ─► [pre gain] ─► [swell + smear|crystal, on the line input] ─► [delay line L/R + feedback] ─► d
+                                                                                                  │
+   main branch:  d ─► [tone L/R lowpass] ─► [grit soft-clip, constant loudness] ─► w ─┬─► wet = (w + revMix·tail) · wetGain
+                                                                                       └─► hall reverb (fed by w ONLY) ─► tail (M/S width)
+   pitch branch: input ─► [capture at the transient: 200 ms frozen, transposed 2^(st/12), held/looped]
+                        ─► [delay at ratio × Time L/R] ─► [own hall reverb] ─► pitchEcho + revMix·pitchTail
+
+out = ((1-mix)·dry + mix·wet + mix·pitchMix·(pitchEcho + revMix·pitchTail)·wetGain) · master
+      └─ Mix L/R is the master of the whole branch (dry/wet + pitch); Pitch Mix = pitch level within it
 ```
 
 ## Manual build (details)
