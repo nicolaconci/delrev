@@ -109,6 +109,20 @@ builds VST3 + AU + Standalone, runs the DSP unit tests, signs the bundles
 **overwriting any previous install**. Then restart the DAW (or
 `killall -9 AudioComponentRegistrar`).
 
+## Installer (.pkg, macOS)
+
+```sh
+./setup.sh        # build first
+./installer.sh    # creates build/essentia-1.0.0.pkg
+open build/essentia-1.0.0.pkg
+```
+
+The installer puts the VST3 and AU into `/Library/Audio/Plug-Ins/` (asks for the
+admin password) and rescans Audio Units on install. **For local/personal use no
+Apple verification is needed** (ad-hoc signature). To distribute publicly over
+the internet you must sign with an Apple Developer ID and notarize
+(hardened runtime, $99/yr developer account), otherwise Gatekeeper blocks it.
+
 ## Manual build (produces VST3 + AU + Standalone)
 
 ```sh
