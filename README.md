@@ -102,14 +102,16 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   - **Pitch Mix L/R** (level, default 50 %, 0 = muted), applied AFTER Mix L/R, so the pitch
     lines stay audible independently of the dry/wet mix
   The line is gated at the transient and held while playing, with a 300 ms release. The
-  pitch lines don't pass through Tone/Grit/Rev (those act on the main repeats); main
-  Time L/R stays independent.
+  pitch line **feeds the hall reverb too** (scaled by Pitch Mix — so the pitch gets reverb
+  tails; at Pitch Mix 0 it leaves no trace in the reverb), but skips Tone/Grit, which act
+  on the main repeats only; main Time L/R stays independent.
 - All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
   show the ratio text (`1:2`, `1:1`, `2:1`, …).
 
 v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·pitchLine·wetGain) · master`,
-where `wet = (grit(w) + revMix·tail) · wetGain` and the pitch line is the transient-captured,
-transposed, held (looped) snippet echoed at ≈ `ratio × Time`.
+where `wet = (grit(w) + revMix·tail) · wetGain`, the reverb is fed by `w + pitchMix·pitchLine`
+(so the pitch gets hall tails), and the pitch line is the transient-captured, transposed,
+held (looped) snippet echoed at ≈ `ratio × Time`.
 
 ## Bus layouts
 

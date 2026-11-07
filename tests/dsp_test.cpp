@@ -768,6 +768,39 @@ int main() {
         CHECK(eLate < 1e-3, "capture-hold: fades out long after (gate release)");
     }
 
+    // 23) the pitch line also feeds the hall reverb (tails on the pitch), scaled by Pitch Mix
+    {
+        auto run = [&](float pitchSt, float pitchMix, float revMix) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f;
+            p.revMix = revMix; p.revDecaySec = 5.0f;
+            p.pitchL = pitchSt; p.ratioL = 1.0f; p.pitchMixL = pitchMix;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 1000; i < 3000; ++i)
+                l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            e.process(l.data(), r.data(), 30000);
+            return l;
+        };
+        auto pm1 = run(12.0f, 1.0f, 1.0f); // pitch on, full pitch mix, reverb on
+        auto pm0 = run(12.0f, 0.0f, 1.0f); // pitch muted by pitchMix, reverb on
+        auto noRev = run(12.0f, 1.0f, 0.0f); // pitch on, reverb off
+        std::vector<float> diffMix(30000), diffRev(30000);
+        for (int i = 0; i < 30000; ++i) {
+            diffMix[(size_t) i] = pm1[(size_t) i] - pm0[(size_t) i];
+            diffRev[(size_t) i] = pm1[(size_t) i] - noRev[(size_t) i];
+        }
+        // far tail: direct echoes are over, only reverb tails remain
+        const double ePitchTail = sumAbs(diffMix, 18000, 26000); // pitch reverb tail (pitchMix 1 vs 0)
+        const double eAnyTail = sumAbs(diffRev, 18000, 26000);   // reverb tail at all (rev on vs off)
+        std::printf("  pitch in reverb: pitch-tail energy %.3f, total tail energy %.3f\n", ePitchTail, eAnyTail);
+        CHECK(eAnyTail > 1.0, "reverb tail present after the repeats");
+        CHECK(ePitchTail > 0.2 * eAnyTail && ePitchTail > 0.05, "pitch line feeds the reverb (tails on the pitch)");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

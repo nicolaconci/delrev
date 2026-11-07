@@ -331,7 +331,9 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         }
 
         float rvL = 0.0f, rvR = 0.0f;
-        reverb.process(wL, wR, rvL, rvR);
+        // the reverb is fed by the main repeats AND by the pitch line (scaled by Pitch Mix,
+        // so the pitch gets hall tails too; at pitchMix 0 it leaves no trace in the reverb)
+        reverb.process(wL + pitchMixL * extraL, wR + pitchMixR * extraR, rvL, rvR);
         {
             // reverb width in mid/side: 0 = mono tail, 1 = full stereo, 2 = extra wide
             const float mid = 0.5f * (rvL + rvR);
