@@ -13,8 +13,9 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
-    peakEnvL = peakEnvR = 0.0f;
-    atkEnvL = atkEnvR = 0.0f;
+    fastEnvL = fastEnvR = 0.0f;
+    slowEnvL = slowEnvR = 0.0f;
+    rampL = rampR = 1.0f;
     reverb.prepare(sr);
     EngineParams def;
     target = def;
@@ -30,8 +31,9 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     feedbackL = def.feedbackL;
     feedbackR = def.feedbackR;
     attack = def.attackMs;
-    peakEnvL = peakEnvR = 0.0f;
-    atkEnvL = atkEnvR = 0.0f;
+    fastEnvL = fastEnvR = 0.0f;
+    slowEnvL = slowEnvR = 0.0f;
+    rampL = rampR = 1.0f;
     timeL = def.timeLms;
     timeR = def.timeRms;
     modRate = def.modRateHz;
@@ -122,41 +124,42 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         const float dL = lineL.readCubic(offL);
         const float dR = lineR.readCubic(offR);
 
-        // recirculating feedback, raw: analog-style smooth tail
-        lineL.write(inL + feedbackL * dL);
-        lineL.advance();
-        lineR.write(inR + feedbackR * dR);
-        lineR.advance();
-
-        // attack: amplitude fade-in per repeat on the wet signal, using TWO
-        // smoothed envelopes (peak detector + attack ramp) so the gain never
-        // wobbles at the waveform frequency -> no distortion / no high-pass
-        // coloration; the body of the repeat is preserved (gain -> 1 after A)
-        float wL = dL, wR = dR;
+        // attack: time-based fade-in ramp baked into the delay-line input, so the
+        // first repeat starts soft and later repeats inherit it through the raw
+        // feedback. g is a pure linear ramp reset at input onsets (fast env jumps
+        // above 1.2x slow env) -> the gain never follows the waveform -> no
+        // amplitude-modulation distortion, body of the repeat preserved.
+        float gL = 1.0f, gR = 1.0f;
         const int A = (int) std::lround(attack * sr * 0.001f);
         if (A > 0) {
-            const float relPeak = 1.0f - std::exp(-1.0f / (0.050f * sr)); // peak env release ~50 ms
-            const float relAtk  = 1.0f - std::exp(-1.0f / (0.010f * sr)); // attack env release ~10 ms
-            const float pkL = std::fabs(dL);
-            const float pkR = std::fabs(dR);
-            // peak detector: instant attack, slow release -> tracks the echo envelope
-            if (pkL > peakEnvL) peakEnvL = pkL; else peakEnvL += (pkL - peakEnvL) * relPeak;
-            if (pkR > peakEnvR) peakEnvR = pkR; else peakEnvR += (pkR - peakEnvR) * relPeak;
-            // attack ramp: linear rise over A samples, fast release
-            if (peakEnvL > atkEnvL) atkEnvL += peakEnvL / (float) A; // linear rise, reaches peak after A samples
-            else                    atkEnvL += (peakEnvL - atkEnvL) * relAtk;
-            if (peakEnvR > atkEnvR) atkEnvR += peakEnvR / (float) A;
-            else                    atkEnvR += (peakEnvR - atkEnvR) * relAtk;
-            float gL = std::clamp(atkEnvL / std::max(peakEnvL, 1e-4f), 0.0f, 1.0f);
-            float gR = std::clamp(atkEnvR / std::max(peakEnvR, 1e-4f), 0.0f, 1.0f);
+            auto rampUp = [&](float in, float& fast, float& slow, float& ramp) {
+                const float a = std::fabs(in);
+                const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
+                const float upS  = 1.0f - std::exp(-1.0f / (0.010f * sr)); // slow env attack  ~10 ms
+                const float relS = 1.0f - std::exp(-1.0f / (0.500f * sr)); // slow env release ~500 ms
+                if (a > fast) fast = a; else fast += (a - fast) * relF;
+                if (a > slow) slow += (a - slow) * upS; else slow += (a - slow) * relS;
+                if (fast > 1.2f * slow && slow > 1e-3f && ramp >= 1.0f) ramp = 0.0f; // onset
+                if (ramp < 1.0f) ramp += 1.0f / (float) A;                             // linear ramp over A
+                return ramp;
+            };
+            gL = rampUp(inL, fastEnvL, slowEnvL, rampL);
+            gR = rampUp(inR, fastEnvR, slowEnvR, rampR);
             switch (target.attackCurve) {
                 case 1: gL = std::pow(gL, 0.5f); gR = std::pow(gR, 0.5f); break; // log: fast start
                 case 2: gL = std::pow(gL, 2.0f); gR = std::pow(gR, 2.0f); break; // exp: slow start
                 default: break;                                                 // linear
             }
-            wL = dL * gL;
-            wR = dR * gR;
         }
+
+        // recirculating feedback, raw: analog-style smooth tail; the attack ramp
+        // is applied only to the new input, so it is baked in once and propagates
+        lineL.write(inL * gL + feedbackL * dL);
+        lineL.advance();
+        lineR.write(inR * gR + feedbackR * dR);
+        lineR.advance();
+
+        float wL = dL, wR = dR;
 
         // tone: per-channel one-pole lowpass on the wet (bright vs dark delay);
         // at 100% the filter is bypassed (fully transparent)
@@ -199,8 +202,9 @@ void StereoDelayHallEngine::reset() {
     feedbackL = target.feedbackL;
     feedbackR = target.feedbackR;
     attack = target.attackMs;
-    peakEnvL = peakEnvR = 0.0f;
-    atkEnvL = atkEnvR = 0.0f;
+    fastEnvL = fastEnvR = 0.0f;
+    slowEnvL = slowEnvR = 0.0f;
+    rampL = rampR = 1.0f;
     timeL = target.timeLms;
     timeR = target.timeRms;
     modRate = target.modRateHz;

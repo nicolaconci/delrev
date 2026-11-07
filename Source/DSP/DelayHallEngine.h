@@ -37,7 +37,7 @@ public:
     static constexpr float maxTimeMs = 2000.0f;
     static constexpr float maxModDepthMs = 30.0f;
     static constexpr float minTimeMs = 5.0f;
-    static constexpr float maxAttackMs = 50.0f;
+    static constexpr float maxAttackMs = 100.0f;
 
 private:
     struct DelayLine {
@@ -118,9 +118,10 @@ private:
     float mixL = 0.0f, mixR = 0.0f, toneL = 1.0f, toneR = 1.0f;
     float toneLpL = 0.0f, toneLpR = 0.0f; // tone lowpass state
     float feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
-    // attack fade-in state: peak envelope + attack ramp on the wet signal (per channel)
-    float peakEnvL = 0.0f, peakEnvR = 0.0f;
-    float atkEnvL = 0.0f, atkEnvR = 0.0f;
+    // attack fade-in state: onset envelopes + time ramp on the delay-line input (per channel)
+    float fastEnvL = 0.0f, fastEnvR = 0.0f;
+    float slowEnvL = 0.0f, slowEnvR = 0.0f;
+    float rampL = 1.0f, rampR = 1.0f;
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
     float smoothCoef = 0.0f;
