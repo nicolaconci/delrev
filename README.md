@@ -125,11 +125,10 @@ builds VST3 + AU + Standalone, runs the DSP unit tests, signs the bundles
 ./installer.sh    # creates build/essentia-1.0.0.zip (bundles + install.sh)
 ```
 
-On each Mac:
+On each Mac (one command):
 ```sh
-unzip build/essentia-1.0.0.zip
-cd essentia-1.0.0
-./install.sh      # installs VST3 + AU into ~/Library/Audio/Plug-Ins (user domain)
+./install-from-zip.sh ~/Downloads/essentia-1.0.0.zip   # unzips and installs into ~/Library/Audio/Plug-Ins
+# or manually: unzip build/essentia-1.0.0.zip && cd essentia-1.0.0 && ./install.sh
 ```
 
 A ZIP (not a .pkg) is used on purpose: on macOS 10.15+ the Installer rejects
