@@ -85,7 +85,7 @@ foreach(_t IN ITEMS StereoDelayHall StereoDelayHall_VST3 StereoDelayHall_AU Ster
                                                -Wno-switch-enum
                                                -Wno-macro-redefined
                                                -Wno-unnecessary-virtual-specifier
-                                               -Wno-#warnings>)
+                                               -Wno-\#warnings>)
     endif()
 endforeach()
 
