@@ -28,10 +28,10 @@ struct EngineParams {
     float wetGainDb = 0.0f;   // gain on the wet path only (useful on aux buses at 100% wet)
     float grit = 0.0f;        // 0..1 soft-clip distortion on the repeats
     float modVol = 1.0f;      // 0..1 modulator (LFO) volume
-    float pitchL = 0.0f;      // extra line L pitch shift (semitones, -12..+12, 0 = bypass)
+    float pitchL = 0.0f;      // extra line L pitch shift (semitones, -12..+12, 0 = bypass); captured at transients and held
     float pitchR = 0.0f;      // extra line R pitch shift (semitones)
-    float ratioL = 1.0f;      // extra line L time = ratio x main time (0.25..4, snapped to powers of 2)
-    float ratioR = 1.0f;      // extra line R time ratio
+    float ratioL = 1.0f;      // extra line L echo time = ratio x main time (0.25..4, snapped to powers of 2)
+    float ratioR = 1.0f;      // extra line R echo time ratio
     float pitchMixL = 0.5f;   // extra line L level (0..1), applied post-mix (independent of Mix L)
     float pitchMixR = 0.5f;   // extra line R level
 };
@@ -62,51 +62,54 @@ private:
         inline float readCubic(float offset) const;
     };
 
-    // extra delay line with pitch shift (dual-tap crossfade, DAFX-style)
-    struct PitchLine {
-        std::vector<float> buf;
-        int writePos = 0;
-        float rp = 0.0f;      // read position (absolute, in buffer coords)
-        float window = 0.0f;  // crossfade window W
-        void prepare(double sr, int maxSamples) {
-            buf.assign((size_t) maxSamples + 8192, 0.0f);
-            window = std::min((float) maxSamples * 0.5f, 0.05f * (float) sr);
-            rp = -window;
+    // extra pitch line: at each transient the recent input (ring buffer) is "captured"
+    // (read pointer restarted at the transient), transposed by the pitch amount
+    // (read rate 2^(st/12)) and held (looped with a crossfade at the wrap); the held
+    // snippet is echoed through a delay line at ratio x main time
+    struct CaptureHold {
+        DelayLine line;          // echo line at ratio x main time
+        std::vector<float> ring; // ring buffer with the last capLen input samples
+        int ringPos = 0;
+        int capLen = 0;
+        float window = 0.0f;     // crossfade window at the loop wrap
+        float rp = 0.0f;         // loop read position
+        void prepare(double sr, int lineMaxSamples) {
+            line.resize(lineMaxSamples);
+            capLen = (int) std::ceil(0.150 * sr); // 150 ms capture/hold window
+            ring.assign((size_t) capLen, 0.0f);
+            window = std::min(capLen * 0.5f, 0.020f * (float) sr); // 20 ms wrap crossfade
+            ringPos = 0;
+            rp = 0.0f;
         }
-        void clear() { std::fill(buf.begin(), buf.end(), 0.0f); writePos = 0; rp = -window; }
+        void clear() {
+            line.clear();
+            std::fill(ring.begin(), ring.end(), 0.0f);
+            ringPos = 0;
+            rp = 0.0f;
+        }
+        inline void push(float x) {
+            ring[(size_t) ringPos] = x;
+            ringPos = (ringPos + 1) % capLen;
+        }
+        inline void capture() { // restart the loop at the newest sample (the transient)
+            rp = (float) ((ringPos - 1 + capLen) % capLen);
+        }
         inline float readAt(float pos) const {
-            const int size = (int) buf.size();
-            double p = std::fmod((double) pos, (double) size);
-            if (p < 0.0) p += (double) size;
-            const double fl = std::floor(p);
-            const int i0 = (int) fl;
-            const float frac = (float) (p - fl);
-            const int im1 = ((i0 - 1) % size + size) % size;
-            const int i0w = ((i0) % size + size) % size;
-            const int i1 = ((i0 + 1) % size + size) % size;
-            const int i2 = ((i0 + 2) % size + size) % size;
-            const float ym1 = buf[(size_t) im1], y0 = buf[(size_t) i0w];
-            const float y1 = buf[(size_t) i1], y2 = buf[(size_t) i2];
-            const float c0 = y0;
-            const float c1 = 0.5f * (y1 - ym1);
-            const float c2 = ym1 - 2.5f * y0 + 2.0f * y1 - 0.5f * y2;
-            const float c3 = 0.5f * (y2 - ym1) + 1.5f * (y0 - y1);
-            return ((c3 * frac + c2) * frac + c1) * frac + c0;
+            const int n = capLen;
+            double p = std::fmod((double) pos, (double) n);
+            if (p < 0.0) p += (double) n;
+            const int i0 = (int) p;
+            const float f = (float) (p - (double) i0);
+            const int i1 = (i0 + 1) % n;
+            return ring[(size_t) i0] * (1.0f - f) + ring[(size_t) i1] * f;
         }
-        inline float process(float in, float ratio, float baseOffset) {
-            const int size = (int) buf.size();
-            rp += ratio;
-            const float minD = std::max(4.0f, baseOffset);
-            const float maxD = minD + window;
-            const float wp = (float) writePos;
-            while (wp - rp > maxD) rp += window;
-            while (wp - rp < minD) rp -= window;
-            float w = (wp - rp - minD) / window;
-            w = std::clamp(w, 0.0f, 1.0f);
-            const float out = w * readAt(rp) + (1.0f - w) * readAt(rp - window);
-            buf[(size_t) writePos] = in;
-            writePos = (writePos + 1) % size;
-            return out;
+        inline float play(float readRate) { // transpose + hold (loop), crossfaded at the wrap
+            rp += readRate;
+            if (rp >= (float) capLen) rp -= (float) capLen;
+            const float d = (float) capLen - rp;
+            float w = d / window;
+            if (w > 1.0f) w = 1.0f;
+            return w * readAt(rp) + (1.0f - w) * readAt(rp - (float) capLen);
         }
     };
 
@@ -192,7 +195,8 @@ private:
     float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, ratioL = 1.0f, ratioR = 1.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
     float gateL = 0.0f, gateR = 0.0f; // pitch-line gate: opens at the transient, held while playing
     float gritInL = 0.0f, gritOutL = 0.0f, gritInR = 0.0f, gritOutR = 0.0f; // slow RMS follower: constant-volume grit
-    PitchLine plL, plR;
+    CaptureHold chL, chR;
+    int capTimerL = 1 << 30, capTimerR = 1 << 30; // capture refractory timers
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;
     float smoothCoef = 0.0f;

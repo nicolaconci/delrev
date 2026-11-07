@@ -13,8 +13,10 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
                          + (int) std::ceil(maxModDepthMs * 0.001 * sr) + 8;
     lineL.resize(maxSamples);
     lineR.resize(maxSamples);
-    plL.prepare(sr, maxSamples);
-    plR.prepare(sr, maxSamples);
+    const int pLineMax = (int) std::ceil(maxTimeMs * 4.0f * 0.001 * sr) + 64; // ratio up to 4:1
+    chL.prepare(sr, pLineMax);
+    chR.prepare(sr, pLineMax);
+    capTimerL = capTimerR = 1 << 30;
     inLpL = inLpR = 0.0f;
     inPrevL = inPrevR = 0.0f;
     fastEnvL = fastEnvR = 0.0f;
@@ -57,8 +59,9 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     pitchMixR = def.pitchMixR;
     gateL = gateR = 0.0f;
     gritInL = gritOutL = gritInR = gritOutR = 0.0f;
-    plL.clear();
-    plR.clear();
+    chL.clear();
+    chR.clear();
+    capTimerL = capTimerR = 1 << 30;
     paramsSnapped = false;
     lfoPhase = 0.0f;
 }
@@ -253,28 +256,43 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         lineR.write(wInR * gR + feedbackR * dR);
         lineR.advance();
 
-        // extra pitch lines: pitch in semitones (read rate = 2^(st/12), 0 st = bypass),
-        // line time = ratio x main time (ratio snapped to powers of 2: 1:1, 2:1, 4:1, ...);
-        // the line engages at the transient and is held while playing
+        // extra pitch lines: at each transient, capture the recent input (ring buffer),
+        // transpose it (read rate 2^(st/12)) and hold it (loop); the held snippet is
+        // echoed at ratio x main time (ratio snapped to powers of 2). pitch 0 st = bypass.
         const float rL = std::pow(2.0f, std::round(std::log2(std::max(0.25f, ratioL))));
         const float rR = std::pow(2.0f, std::round(std::log2(std::max(0.25f, ratioR))));
         const float readRateL = std::pow(2.0f, pitchL / 12.0f);
         const float readRateR = std::pow(2.0f, pitchR / 12.0f);
         const float bypassL = (std::fabs(pitchL) < 0.01f) ? 0.0f : 1.0f;
         const float bypassR = (std::fabs(pitchR) < 0.01f) ? 0.0f : 1.0f;
-        // gate: on at transient (fast env jumps over its 15 ms reference), held while signal present
+        // gate + capture trigger share the onset detector: on at the transient, held while playing
         {
             const float relG = 1.0f - std::exp(-1.0f / (0.300f * sr));
             const bool onsetL = fastEnvL > 2.5f * refEnvL && fastEnvL > 0.005f;
             const bool onsetR = fastEnvR > 2.5f * refEnvR && fastEnvR > 0.005f;
             if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * 0.01f; else gateL *= (1.0f - relG);
             if (onsetR || fastEnvR > 0.01f) gateR += (1.0f - gateR) * 0.01f; else gateR *= (1.0f - relG);
+            const int refr = (int) (0.060f * sr); // 60 ms capture refractory
+            ++capTimerL;
+            ++capTimerR;
+            chL.push(wInL * gL);
+            chR.push(wInR * gR);
+            if (onsetL && capTimerL > refr) { chL.capture(); capTimerL = 0; }
+            if (onsetR && capTimerR > refr) { chR.capture(); capTimerR = 0; }
         }
         float extraL = 0.0f, extraR = 0.0f;
-        if (bypassL > 0.0f)
-            extraL = plL.process(wInL * gL, readRateL, timeL * sr * 0.001f * rL);
-        if (bypassR > 0.0f)
-            extraR = plR.process(wInR * gR, readRateR, timeR * sr * 0.001f * rR);
+        if (bypassL > 0.0f) {
+            chL.line.write(chL.play(readRateL));
+            chL.line.advance();
+            const float offL = std::clamp(timeL * sr * 0.001f * rL, 4.0f, (float) (chL.line.buf.size() - 4));
+            extraL = chL.line.readCubic(offL);
+        }
+        if (bypassR > 0.0f) {
+            chR.line.write(chR.play(readRateR));
+            chR.line.advance();
+            const float offR = std::clamp(timeR * sr * 0.001f * rR, 4.0f, (float) (chR.line.buf.size() - 4));
+            extraR = chR.line.readCubic(offR);
+        }
         extraL *= gateL;
         extraR *= gateR;
 
@@ -373,8 +391,9 @@ void StereoDelayHallEngine::reset() {
     pitchMixR = target.pitchMixR;
     gateL = gateR = 0.0f;
     gritInL = gritOutL = gritInR = gritOutR = 0.0f;
-    plL.clear();
-    plR.clear();
+    chL.clear();
+    chR.clear();
+    capTimerL = capTimerR = 1 << 30;
     paramsSnapped = true;
 }
 

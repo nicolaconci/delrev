@@ -89,24 +89,27 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
   peaks are clamped, never louder than without grit). The knob range is compressed on
   purpose: 100 % gives the saturation that the raw amount reached at 50 %.
 - **Mod Vol** (0–100 %, default 100 %, small knob at the bottom of MOD): scales the LFO depth
-- **Three small knobs per channel at the bottom of LEFT/RIGHT** — extra pitch-shifted delay
-  line (dual-tap crossfade shifter), added post-mix:
+- **Three small knobs per channel at the bottom of LEFT/RIGHT** — extra "capture & hold"
+  pitch line (ICE-style), added post-mix. It does NOT pitch-shift the whole signal:
+  at each **transient** (onset detector, 60 ms refractory) the last 150 ms of the input
+  are captured, **transposed** by the Pitch amount and **held** (looped, crossfaded at
+  the wrap), then echoed at `ratio × Time`:
   - **Pitch L/R** (−12..+12 st, step 1 st, centered at 12 o'clock, double-click = 0):
-    pitch shift of the extra line, read rate `2^(st/12)`; **0 st = bypass**
-  - **Ratio L/R** (time ratio vs the channel's main delay time, snapped to powers of 2:
-    `1:4`, `1:2`, `1:1`, `2:1`, `4:1`, double-click = `1:1`): the line echoes at
+    transpose of the captured snippet, read rate `2^(st/12)`; **0 st = bypass**
+  - **Ratio L/R** (echo time vs the channel's main delay time, snapped to powers of 2:
+    `1:4`, `1:2`, `1:1`, `2:1`, `4:1`, double-click = `1:1`): the held snippet echoes at
     ≈ `ratio × Time L/R` (`2:1` → about double the time)
   - **Pitch Mix L/R** (level, default 50 %, 0 = muted), applied AFTER Mix L/R, so the pitch
     lines stay audible independently of the dry/wet mix
-  The line engages at the transient (onset detector) and is held while playing, with a
-  300 ms release. The pitch lines don't pass through Tone/Grit/Rev (those act on the main
-  repeats); main Time L/R stays independent.
+  The line is gated at the transient and held while playing, with a 300 ms release. The
+  pitch lines don't pass through Tone/Grit/Rev (those act on the main repeats); main
+  Time L/R stays independent.
 - All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
   show the ratio text (`1:2`, `1:1`, `2:1`, …).
 
 v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·pitchLine·wetGain) · master`,
-where `wet = (grit(w) + revMix·tail) · wetGain` and the pitch line (pitch st, time
-≈ `ratio × Time`) is gated at the transient and held while playing.
+where `wet = (grit(w) + revMix·tail) · wetGain` and the pitch line is the transient-captured,
+transposed, held (looped) snippet echoed at ≈ `ratio × Time`.
 
 ## Bus layouts
 
@@ -172,8 +175,8 @@ Covers: dry passthrough, independent L/R repeat positions/amplitudes, reverb
 tail only after repeats, modulation (+ mod vol), pre/master/wet gains,
 smear|crystal, swell (incl. continuous playing), tone, reverb width,
 mono→stereo, stability (no NaN), 48 kHz, grit (constant volume, hot peaks
-clamped), pitch ratio lines (octave up/down, echo at ratio × time, mix
-independence).
+clamped), pitch capture-hold lines (octave up/down on the captured snippet,
+echo at ratio × time, transient gate, mix independence).
 
 ## Standalone app and microphone (macOS)
 

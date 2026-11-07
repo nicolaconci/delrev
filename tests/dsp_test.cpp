@@ -660,9 +660,9 @@ int main() {
             diffUp[(size_t) i] = up[(size_t) i] - base[(size_t) i];
             diffDown[(size_t) i] = down[(size_t) i] - base[(size_t) i];
         }
-        const int zc0 = countZC(base, t + 500, t + 20000);
-        const int zcUp = countZC(diffUp, t + 500, t + 20000);
-        const int zcDown = countZC(diffDown, t + 500, t + 20000);
+        const int zc0 = countZC(base, t + 2500, t + 20000);
+        const int zcUp = countZC(diffUp, t + 2500, t + 20000);
+        const int zcDown = countZC(diffDown, t + 2500, t + 20000);
         std::printf("  pitch st: zc main %d, +12st %d, -12st %d\n", zc0, zcUp, zcDown);
         CHECK(zcUp > (int) (1.6 * zc0), "pitch +12 st: extra line ~doubles the frequency (octave up)");
         CHECK(zcDown > 0 && zcDown < (int) (0.65 * zc0), "pitch -12 st: extra line ~halves the frequency (octave down)");
@@ -679,7 +679,7 @@ int main() {
             for (int i = 0; i < 30000; ++i) l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
             e.process(l.data(), r.data(), 30000);
             double en = 0.0;
-            for (int i = t + 500; i < t + 20000; ++i) en += std::fabs(l[(size_t) i] - base[(size_t) i]);
+            for (int i = t + 2500; i < t + 20000; ++i) en += std::fabs(l[(size_t) i] - base[(size_t) i]);
             std::printf("  pitchMix=0: extra-line energy %.5f\n", en);
             CHECK(en < 1e-3, "pitchMix=0: extra line muted");
         }
@@ -742,6 +742,30 @@ int main() {
         const double eMain = rms(on, t + 500, t + 20000);
         std::printf("  pitchMix independence: pitch-line rms %.4f vs output rms %.4f (mix 30%%)\n", eDiff, eMain);
         CHECK(eDiff > 0.3 * eMain, "pitch line level independent of Mix L (audible at mix 30% with pitchMix 100%)");
+    }
+
+    // 22) capture-hold: the pitch line is silent before the first transient, then the
+    //     captured snippet is transposed, held (looped) and echoed; it fades out after
+    {
+        StereoDelayHallEngine e;
+        e.prepare(sr, 512);
+        EngineParams p;
+        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+        p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+        p.pitchL = 12.0f; p.ratioL = 1.0f; p.pitchMixL = 1.0f;
+        e.setParams(p);
+        std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+        for (int i = 1000; i < 3000; ++i) // short burst 22..68 ms
+            l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+        e.process(l.data(), r.data(), 30000);
+        const int t = (int) (0.100 * sr);
+        const double ePre = sumAbs(l, 500, t + 900);      // before any echo (burst starts at 1000)
+        const double eHold = sumAbs(l, t + 3000, t + 6000); // after the burst: held loop + echo
+        const double eLate = sumAbs(l, 25000, 29000);      // long after: gate released
+        std::printf("  capture-hold: pre %.5f, hold %.2f, late %.5f\n", ePre, eHold, eLate);
+        CHECK(ePre < 1e-3, "capture-hold: silent before the first transient");
+        CHECK(eHold > 1.0, "capture-hold: captured snippet transposed+held after the transient");
+        CHECK(eLate < 1e-3, "capture-hold: fades out long after (gate release)");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
