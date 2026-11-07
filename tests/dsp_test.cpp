@@ -159,6 +159,8 @@ int main() {
         EngineParams p;
         p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.95f; p.feedbackR = 0.95f; p.timeLms = 50.0f; p.timeRms = 37.0f;
         p.modRateHz = 10.0f; p.modDepthMs = 30.0f; p.revMix = 1.0f; p.revDecaySec = 10.0f;
+        p.grit = 1.0f; p.modVol = 0.7f; p.smear = 0.8f; p.swellMs = 100.0f;
+        p.pitchL = 0.5f; p.pitchR = 2.0f; p.pitchMixL = 0.8f; p.pitchMixR = 0.8f;
         e.setParams(p);
         std::vector<float> l(44100), r(44100);
         unsigned int seed = 12345;
@@ -544,9 +546,9 @@ int main() {
         CHECK(maxDiffWide > 1e-3, "width 200%: reverb tail is wide (L != R)");
     }
 
-    // 17) grit: soft-clip distortion on the repeats (hot input gets clamped)
+    // 17) grit: soft-clip on the repeats, constant volume (RMS make-up), hot peaks clamped but not louder
     {
-        auto run = [&](float grit) {
+        auto runImp = [&](float grit) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
@@ -559,16 +561,44 @@ int main() {
             e.process(l.data(), r.data(), 20000);
             return l;
         };
+        auto runSine = [&](float grit) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.grit = grit;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            for (int i = 0; i < 20000; ++i)
+                l[i] = 0.5f * std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
         const int t = (int) (0.100 * sr);
         float pv = 0.0f;
-        auto clean = run(0.0f);
+        auto clean = runImp(0.0f);
         peakIndex(clean, t - 20, t + 20, &pv);
         const float c = pv; // ~4 (preGain +12 dB)
-        auto gritty = run(1.0f);
+        auto gritty = runImp(1.0f);
         peakIndex(gritty, t - 20, t + 20, &pv);
         std::printf("  grit: echo peak clean %.2f gritty %.2f\n", (double) c, (double) pv);
         CHECK(c > 3.5f, "grit=0: hot repeat passes (~4)");
-        CHECK(pv < 1.5f, "grit=1: repeat soft-clipped (~1)");
+        CHECK(pv < 0.6f * c, "grit=1: hot repeat soft-clipped, NOT louder than clean");
+        // constant volume: sustained sine, RMS of the repeat with grit ~ without grit
+        auto s0 = runSine(0.0f);
+        auto s1 = runSine(1.0f);
+        const double r0 = rms(s0, t + 2000, t + 8000);
+        const double r1 = rms(s1, t + 2000, t + 8000);
+        float pk0 = 0.0f, pk1 = 0.0f;
+        peakIndex(s0, t + 2000, t + 8000, &pk0);
+        peakIndex(s1, t + 2000, t + 8000, &pk1);
+        const double crest0 = r0 > 1e-9 ? std::fabs(pk0) / r0 : 0.0;
+        const double crest1 = r1 > 1e-9 ? std::fabs(pk1) / r1 : 0.0;
+        std::printf("  grit: sine rms clean %.4f gritty %.4f (ratio %.3f), crest %.3f -> %.3f\n",
+                    r0, r1, r0 > 1e-9 ? r1 / r0 : 0.0, crest0, crest1);
+        CHECK(r1 > 0.8 * r0 && r1 < 1.25 * r0, "grit=1: repeat RMS ~constant (volume unchanged)");
+        CHECK(crest1 < crest0 - 0.1, "grit=1: crest factor drops (signal actually saturated)");
     }
 
     // 18) modVol: LFO depth scaled by mod volume (0 = no modulation)
@@ -597,15 +627,15 @@ int main() {
         CHECK(std::abs(pkOff - expL) <= 3, "modVol=0: no modulation");
     }
 
-    // 19) pitch: extra line shifts up one octave at +12 semitones
+    // 19) pitch ratio (ICE-style): ratio 1:2 (0.5) reads at 2x -> octave UP; 2:1 reads at 0.5x -> octave DOWN
     {
-        auto run = [&](float pitchSt) {
+        auto run = [&](float ratio) {
             StereoDelayHallEngine e;
             e.prepare(sr, 512);
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = pitchSt; p.pitchTimeLms = 100.0f;
+            p.pitchL = ratio;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 0; i < 30000; ++i)
@@ -620,15 +650,21 @@ int main() {
             return c;
         };
         const int t = (int) (0.100 * sr);
-        auto base = run(0.0f);
-        auto up = run(12.0f);
+        auto base = run(1.0f);  // 1:1 = bypass
+        auto up = run(0.5f);    // 1:2 -> read rate 2 -> octave up
+        auto down = run(2.0f);  // 2:1 -> read rate 0.5 -> octave down
         // difference = only the extra pitch-shifted line (main echo identical in both runs)
-        std::vector<float> diff(30000, 0.0f);
-        for (int i = 0; i < 30000; ++i) diff[(size_t) i] = up[(size_t) i] - base[(size_t) i];
+        std::vector<float> diffUp(30000, 0.0f), diffDown(30000, 0.0f);
+        for (int i = 0; i < 30000; ++i) {
+            diffUp[(size_t) i] = up[(size_t) i] - base[(size_t) i];
+            diffDown[(size_t) i] = down[(size_t) i] - base[(size_t) i];
+        }
         const int zc0 = countZC(base, t + 500, t + 20000);
-        const int zc12 = countZC(diff, t + 500, t + 20000);
-        std::printf("  pitch: zc main %d, zc extra(+12st) %d\n", zc0, zc12);
-        CHECK(zc12 > (int) (1.6 * zc0), "pitch +12 st: extra line ~doubles the frequency");
+        const int zcUp = countZC(diffUp, t + 500, t + 20000);
+        const int zcDown = countZC(diffDown, t + 500, t + 20000);
+        std::printf("  pitch ratio: zc main %d, 1:2 %d, 2:1 %d\n", zc0, zcUp, zcDown);
+        CHECK(zcUp > (int) (1.6 * zc0), "pitch 1:2: extra line ~doubles the frequency (octave up)");
+        CHECK(zcDown > 0 && zcDown < (int) (0.65 * zc0), "pitch 2:1: extra line ~halves the frequency (octave down)");
         // pitchMix = 0 -> extra line fully muted
         {
             StereoDelayHallEngine e;
@@ -636,7 +672,7 @@ int main() {
             EngineParams p;
             p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = 12.0f; p.pitchTimeLms = 100.0f; p.pitchMixL = 0.0f;
+            p.pitchL = 0.5f; p.pitchMixL = 0.0f;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
             for (int i = 0; i < 30000; ++i) l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
@@ -648,25 +684,35 @@ int main() {
         }
     }
 
-    // 20) pitch line has its own delay time (pitchTimeL), independent from Time L
+    // 20) pitch line time = ratio x main time: ratio 2:1 echoes around 2x the main delay time
     {
-        StereoDelayHallEngine e;
-        e.prepare(sr, 512);
-        EngineParams p;
-        p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
-        p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-        p.pitchL = 12.0f; p.pitchTimeLms = 200.0f;
-        e.setParams(p);
-        std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
-        l[0] = 1.0f;
-        e.process(l.data(), r.data(), 30000);
-        const int t = (int) (0.100 * sr);       // main echo at 100 ms
-        const int t2 = (int) (0.200 * sr);      // pitch line should echo at 200 ms
-        double eMain = 0.0, ePitch = 0.0;
-        for (int i = t - 20; i < t + 20; ++i) eMain += std::fabs(l[(size_t) i]);
-        for (int i = t2 - 20; i < t2 + 2500; ++i) ePitch += std::fabs(l[(size_t) i]);
-        std::printf("  pitchTime: energy at 100ms %.3f, at 200ms %.3f\n", eMain, ePitch);
-        CHECK(ePitch > 0.05 && eMain > 0.9f, "pitch line echoes at its own time (200 ms), main at 100 ms");
+        auto run = [&](float ratio) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.pitchL = ratio; p.pitchMixL = 1.0f;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            for (int i = 1000; i < 9000; ++i) // burst 22..204 ms
+                l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
+            e.process(l.data(), r.data(), 30000);
+            return l;
+        };
+        auto on = run(2.0f);   // 2:1 -> pitch line around 200 ms
+        auto off = run(1.0f);  // 1:1 -> bypass
+        std::vector<float> diff(30000, 0.0f);
+        for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - off[(size_t) i];
+        const int t = (int) (0.100 * sr);   // main echo at 100 ms
+        const int t2 = (int) (0.200 * sr);  // pitch line at 2 x 100 ms
+        const double eMain = sumAbs(on, t - 500, t + 1500);        // main echo of the burst at 100 ms
+        const double eEarly = sumAbs(diff, t + 1500, t2 - 1000);    // between main echo and 200 ms
+        const double ePitch = sumAbs(diff, t2 - 100, t2 + 6000);    // around 200 ms
+        std::printf("  pitch ratio time: main %.1f, diff before 200ms %.3f, around 200ms %.1f\n", eMain, eEarly, ePitch);
+        CHECK(eMain > 100.0, "main echo of the burst at 100 ms");
+        CHECK(eEarly < 0.05 * ePitch, "ratio 2:1: no pitch-line energy before ~2x main time");
+        CHECK(ePitch > 100.0, "ratio 2:1: extra line echoes around 2x the main time (200 ms)");
     }
 
     // 21) pitch mix is independent of Mix L: at mix=30% the pitch line still comes through at pitchMix level
@@ -677,21 +723,24 @@ int main() {
             EngineParams p;
             p.mixL = 0.3f; p.mixR = 0.3f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
             p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
-            p.pitchL = 12.0f; p.pitchTimeLms = 100.0f; p.pitchMixL = pitchMix;
+            p.pitchL = 0.5f; p.pitchMixL = pitchMix;
             e.setParams(p);
             std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
-            l[0] = 1.0f;
+            for (int i = 0; i < 30000; ++i)
+                l[i] = std::sin(2.0 * 3.14159265 * 440.0 * i / sr);
             e.process(l.data(), r.data(), 30000);
             return l;
         };
         const int t = (int) (0.100 * sr);
         auto off = run(0.0f);
         auto on = run(1.0f);
-        // energy over the echo + pitch crossfade window (impulse gets smeared by the shifter)
-        const double eOff = sumAbs(off, t - 100, t + 2500);
-        const double eOn = sumAbs(on, t - 100, t + 2500);
-        std::printf("  pitchMix independence: energy mix-only %.3f, +pitchMix1 %.3f\n", eOff, eOn);
-        CHECK(eOn > 2.0 * eOff, "pitch line level independent of Mix L (comes through at pitchMix even at mix 30%)");
+        // difference isolates the pitch line (dry + main echo identical in both runs)
+        std::vector<float> diff(30000, 0.0f);
+        for (int i = 0; i < 30000; ++i) diff[(size_t) i] = on[(size_t) i] - off[(size_t) i];
+        const double eDiff = rms(diff, t + 500, t + 20000);
+        const double eMain = rms(on, t + 500, t + 20000);
+        std::printf("  pitchMix independence: pitch-line rms %.4f vs output rms %.4f (mix 30%%)\n", eDiff, eMain);
+        CHECK(eDiff > 0.3 * eMain, "pitch line level independent of Mix L (audible at mix 30% with pitchMix 100%)");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

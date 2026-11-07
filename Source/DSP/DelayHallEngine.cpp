@@ -51,10 +51,12 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     modVol = def.modVol;
     pitchL = def.pitchL;
     pitchR = def.pitchR;
-    pitchTimeL = def.pitchTimeLms;
-    pitchTimeR = def.pitchTimeRms;
     pitchMixL = def.pitchMixL;
     pitchMixR = def.pitchMixR;
+    gateL = gateR = 0.0f;
+    gritInL = gritOutL = gritInR = gritOutR = 0.0f;
+    plL.clear();
+    plR.clear();
     paramsSnapped = false;
     lfoPhase = 0.0f;
 }
@@ -81,10 +83,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.wetGainDb = std::clamp(c.wetGainDb, -12.0f, 12.0f);
     c.grit = std::clamp(c.grit, 0.0f, 1.0f);
     c.modVol = std::clamp(c.modVol, 0.0f, 1.0f);
-    c.pitchL = std::clamp(c.pitchL, -12.0f, 12.0f);
-    c.pitchR = std::clamp(c.pitchR, -12.0f, 12.0f);
-    c.pitchTimeLms = std::clamp(c.pitchTimeLms, minTimeMs, maxTimeMs);
-    c.pitchTimeRms = std::clamp(c.pitchTimeRms, minTimeMs, maxTimeMs);
+    c.pitchL = std::clamp(c.pitchL, 0.25f, 4.0f);
+    c.pitchR = std::clamp(c.pitchR, 0.25f, 4.0f);
     c.pitchMixL = std::clamp(c.pitchMixL, 0.0f, 1.0f);
     c.pitchMixR = std::clamp(c.pitchMixR, 0.0f, 1.0f);
     target = c;
@@ -114,8 +114,6 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         modVol = c.modVol;
         pitchL = c.pitchL;
         pitchR = c.pitchR;
-        pitchTimeL = c.pitchTimeLms;
-        pitchTimeR = c.pitchTimeRms;
         pitchMixL = c.pitchMixL;
         pitchMixR = c.pitchMixR;
         paramsSnapped = true;
@@ -150,8 +148,6 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         modVol += (target.modVol - modVol) * smoothCoef;
         pitchL += (target.pitchL - pitchL) * smoothCoef;
         pitchR += (target.pitchR - pitchR) * smoothCoef;
-        pitchTimeL += (target.pitchTimeLms - pitchTimeL) * smoothCoef;
-        pitchTimeR += (target.pitchTimeRms - pitchTimeR) * smoothCoef;
         pitchMixL += (target.pitchMixL - pitchMixL) * smoothCoef;
         pitchMixR += (target.pitchMixR - pitchMixR) * smoothCoef;
 
@@ -176,16 +172,21 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         // line input (onset detector resets the ramp; never follows the waveform
         // -> no distortion). Toggle swellOnInput applies the same swell to the
         // dry input signal too.
+        // fast + 15 ms-reference envelopes (used by swell onset and pitch gate)
+        {
+            const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr));
+            const float tauR = 1.0f - std::exp(-1.0f / (0.015f * sr));
+            const float aL = std::fabs(inL), aR = std::fabs(inR);
+            if (aL > fastEnvL) fastEnvL = aL; else fastEnvL += (aL - fastEnvL) * relF;
+            if (aL > refEnvL) refEnvL += (aL - refEnvL) * tauR; else refEnvL += (aL - refEnvL) * tauR;
+            if (aR > fastEnvR) fastEnvR = aR; else fastEnvR += (aR - fastEnvR) * relF;
+            if (aR > refEnvR) refEnvR += (aR - refEnvR) * tauR; else refEnvR += (aR - refEnvR) * tauR;
+        }
         float gL = 1.0f, gR = 1.0f;
         const int S = (int) std::lround(swell * sr * 0.001f);
         if (S > 0) {
             const int refractory = (int) (0.060f * sr); // 60 ms between onsets
-            auto rampUp = [&](float in, float& fast, float& ref, float& ramp, float& tgt, int& sinceOnset) {
-                const float a = std::fabs(in);
-                const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
-                const float tauR = 1.0f - std::exp(-1.0f / (0.015f * sr)); // ref env attack+release ~15 ms (lags behind fast)
-                if (a > fast) fast = a; else fast += (a - fast) * relF;
-                if (a > ref) ref += (a - ref) * tauR; else ref += (a - ref) * tauR;
+            auto rampUp = [&](float& fast, float& ref, float& ramp, float& tgt, int& sinceOnset) {
                 ++sinceOnset;
                 // onset: fast envelope jumps well above its own recent reference
                 // (2.5x) - level-independent and works even in continuous playing;
@@ -202,8 +203,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 }
                 return ramp;
             };
-            gL = rampUp(inL, fastEnvL, refEnvL, rampL, swellTargetL, onsetTimerL);
-            gR = rampUp(inR, fastEnvR, refEnvR, rampR, swellTargetR, onsetTimerR);
+            gL = rampUp(fastEnvL, refEnvL, rampL, swellTargetL, onsetTimerL);
+            gR = rampUp(fastEnvR, refEnvR, rampR, swellTargetR, onsetTimerR);
         }
 
         // smear | crystal: bipolar filter applied ONCE to the input entering the
@@ -244,14 +245,29 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         lineR.write(wInR * gR + feedbackR * dR);
         lineR.advance();
 
-        // extra pitch-shifted lines, same pipeline; bypassed at 0 semitones
-        const float ratioL = std::pow(2.0f, pitchL / 12.0f);
-        const float ratioR = std::pow(2.0f, pitchR / 12.0f);
+        // extra pitch lines (ICE-style): ratio vs the main delay time, snapped to
+        // powers of 2; the line engages at the transient and is held while playing.
+        // ratio 1 = bypass. ratio R -> line time = R * main time, read rate = 1/R
+        // (R=2 -> one octave down at double time, R=0.5 -> one octave up at half time)
+        const float ratioL = std::pow(2.0f, std::round(std::log2(std::max(0.25f, pitchL))));
+        const float ratioR = std::pow(2.0f, std::round(std::log2(std::max(0.25f, pitchR))));
+        const float bypassL = (std::fabs(ratioL - 1.0f) < 0.01f) ? 0.0f : 1.0f;
+        const float bypassR = (std::fabs(ratioR - 1.0f) < 0.01f) ? 0.0f : 1.0f;
+        // gate: on at transient (fast env jumps over its 15 ms reference), held while signal present
+        {
+            const float relG = 1.0f - std::exp(-1.0f / (0.300f * sr));
+            const bool onsetL = fastEnvL > 2.5f * refEnvL && fastEnvL > 0.005f;
+            const bool onsetR = fastEnvR > 2.5f * refEnvR && fastEnvR > 0.005f;
+            if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * 0.01f; else gateL *= (1.0f - relG);
+            if (onsetR || fastEnvR > 0.01f) gateR += (1.0f - gateR) * 0.01f; else gateR *= (1.0f - relG);
+        }
         float extraL = 0.0f, extraR = 0.0f;
-        if (std::fabs(pitchL) >= 1.0f)
-            extraL = plL.process(wInL * gL, ratioL, pitchTimeL * sr * 0.001f);
-        if (std::fabs(pitchR) >= 1.0f)
-            extraR = plR.process(wInR * gR, ratioR, pitchTimeR * sr * 0.001f);
+        if (bypassL > 0.0f)
+            extraL = plL.process(wInL * gL, 1.0f / ratioL, timeL * sr * 0.001f * ratioL);
+        if (bypassR > 0.0f)
+            extraR = plR.process(wInR * gR, 1.0f / ratioR, timeR * sr * 0.001f * ratioR);
+        extraL *= gateL;
+        extraR *= gateR;
 
         float wL = dL, wR = dR;
 
@@ -270,12 +286,21 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             wR = toneLpR;
         }
 
-        // grit: soft-clip (tanh) distortion on the repeats
+        // grit: soft-clip (tanh) distortion on the repeats with slow RMS make-up gain,
+        // so the perceived volume stays constant and only saturation is added
         if (grit > 0.001f) {
-            const float drive = 1.0f + grit * 12.0f;
-            const float norm = std::tanh(drive);
-            wL = std::tanh(wL * drive) / norm;
-            wR = std::tanh(wR * drive) / norm;
+            const float drive = 1.0f + grit * 6.0f;
+            const float oL = std::tanh(wL * drive);
+            const float oR = std::tanh(wR * drive);
+            const float k = 1.0f - std::exp(-1.0f / (0.150f * sr)); // 150 ms loudness follower
+            gritInL += (wL * wL - gritInL) * k;
+            gritOutL += (oL * oL - gritOutL) * k;
+            gritInR += (wR * wR - gritInR) * k;
+            gritOutR += (oR * oR - gritOutR) * k;
+            const float mkL = std::clamp(gritOutL > 1e-9f ? std::sqrt(gritInL / gritOutL) : 1.0f, 0.25f, 2.0f);
+            const float mkR = std::clamp(gritOutR > 1e-9f ? std::sqrt(gritInR / gritOutR) : 1.0f, 0.25f, 2.0f);
+            wL = oL * mkL;
+            wR = oR * mkR;
         }
 
         float rvL = 0.0f, rvR = 0.0f;
@@ -333,10 +358,10 @@ void StereoDelayHallEngine::reset() {
     modVol = target.modVol;
     pitchL = target.pitchL;
     pitchR = target.pitchR;
-    pitchTimeL = target.pitchTimeLms;
-    pitchTimeR = target.pitchTimeRms;
     pitchMixL = target.pitchMixL;
     pitchMixR = target.pitchMixR;
+    gateL = gateR = 0.0f;
+    gritInL = gritOutL = gritInR = gritOutR = 0.0f;
     plL.clear();
     plR.clear();
     paramsSnapped = true;

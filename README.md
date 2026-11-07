@@ -84,13 +84,25 @@ swell 205 ms, crystal +33, rev mix 60%, width 150%).
 
 ## v2 features (branch `essentia_v2`)
 
-- **Grit** (0–100 %, box SMEAR): tanh soft-clip distortion on the repeats
+- **Grit** (0–100 %, box SMEAR): tanh soft-clip saturation on the repeats with a slow RMS
+  make-up gain — the perceived volume stays constant and only saturation is added (hot
+  peaks are clamped, never louder than without grit)
 - **Mod Vol** (0–100 %, default 100 %, small knob at the bottom of MOD): scales the LFO depth
-- **Pitch L / Pitch R** (−12..+12 semitones, step 1 st, small knobs at the bottom of LEFT/RIGHT,
-  centered at 12 o'clock, double-click = 0): extra pitch-shifted delay line per channel
-  (dual-tap crossfade shifter), mixed into the same wet pipeline; at 0 st the line is bypassed.
-  Each pitch line has its own **Pitch Time L/R** (20–2000 ms) and **Pitch Mix L/R** (level, default 50%, 0 = muted; applied AFTER Mix L/R, so the pitch lines stay audible independently of the dry/wet mix) —
-  small knobs next to Pitch at the bottom of LEFT/RIGHT — and inherits the channel's Tone; main Time L/R stays independent.
+- **Pitch L / Pitch R** (ICE-style; small knobs at the bottom of LEFT/RIGHT, centered at
+  12 o'clock = `1:1`, double-click = `1:1`): ratio vs the channel's main delay time, snapped
+  to powers of 2 — `1:4`, `1:2`, `1:1`, `2:1`, `4:1` (slower ratio = lower octave). The extra
+  line is a dual-tap crossfade pitch shifter reading at `1/ratio`, so its echo lands around
+  `ratio × Time L/R` (`2:1` → about double the time, one octave down). The line engages at
+  the transient (onset detector) and is held while playing, with a 300 ms release.
+  **Pitch Mix L/R** (level, default 50 %, 0 = muted) sits next to Pitch at the bottom of
+  LEFT/RIGHT and is applied AFTER Mix L/R, so the pitch lines stay audible independently of
+  the dry/wet mix. The pitch lines are added post-mix (they don't pass through Tone/Grit/Rev,
+  which act on the main repeats); main Time L/R stays independent.
+- All knob value labels are integers, except **Mod Rate** (1 decimal, Hz); the pitch knobs
+  show the ratio text (`1:2`, `1:1`, `2:1`, …).
+
+v2 signal flow: `out = ((1-mix)·dry + mix·wet + pitchMix·pitchLine·wetGain) · master`,
+where `wet = (grit(w) + revMix·tail) · wetGain` and the pitch line echoes at ≈ `ratio × Time`.
 
 ## Bus layouts
 
@@ -153,9 +165,11 @@ cmake --build build --target dsp_test && ./build/dsp_test
 ```
 
 Covers: dry passthrough, independent L/R repeat positions/amplitudes, reverb
-tail only after repeats, modulation, pre/master/wet gains, smear|crystal,
-swell (incl. continuous playing), tone, reverb width, mono→stereo, stability
-(no NaN), 48 kHz.
+tail only after repeats, modulation (+ mod vol), pre/master/wet gains,
+smear|crystal, swell (incl. continuous playing), tone, reverb width,
+mono→stereo, stability (no NaN), 48 kHz, grit (constant volume, hot peaks
+clamped), pitch ratio lines (octave up/down, echo at ratio × time, mix
+independence).
 
 ## Standalone app and microphone (macOS)
 
