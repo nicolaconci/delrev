@@ -9,10 +9,10 @@
 
 using namespace juce;
 
-static AudioParameterFloatAttributes makeAttrs(const String& label, int /*decimals*/) {
+static AudioParameterFloatAttributes makeAttrs(const String& label, int decimals) {
     return AudioParameterFloatAttributes()
         .withLabel(label)
-        .withStringFromValueFunction([](float v, int) { return String((int) std::lround(v)); }) // round to integer
+        .withStringFromValueFunction([decimals](float v, int) { return String(v, decimals); })
         .withValueFromStringFunction([](const String& s) { return s.getFloatValue(); });
 }
 
@@ -24,34 +24,34 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
         layout.add(std::make_unique<AudioParameterFloat>(ParameterID{id, 1}, name, range, def, attrs));
     };
 
-    addFloat("preGain", "Pre Gain", {-24.0f, 24.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
-    addFloat("master", "Master", {-48.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
-    addFloat("mixL", "Mix L", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
-    addFloat("toneL", "Tone L", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
-    addFloat("mixR", "Mix R", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
-    addFloat("toneR", "Tone R", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
-    addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
-    addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
+    addFloat("preGain", "Pre Gain", {-24.0f, 24.0f, 0.1f}, 0.0f, makeAttrs("dB", 0));
+    addFloat("master", "Master", {-48.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 0));
+    addFloat("mixL", "Mix L", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 0));
+    addFloat("toneL", "Tone L", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
+    addFloat("mixR", "Mix R", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 0));
+    addFloat("toneR", "Tone R", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
+    addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 0));
+    addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 0));
     addFloat("smear", "Smear | Crystal", {-100.0f, 100.0f, 0.1f}, 0.0f, makeAttrs("%", 0));
     addFloat("swell", "Swell", {0.0f, 500.0f, 1.0f}, 0.0f, makeAttrs("ms", 0));
 
     NormalisableRange<float> timeRange(20.0f, 2000.0f, 0.1f);
     timeRange.setSkewForCentre(500.0f);
-    addFloat("timeL", "Time L", timeRange, 375.0f, makeAttrs("ms", 1));
-    addFloat("timeR", "Time R", timeRange, 500.0f, makeAttrs("ms", 1));
+    addFloat("timeL", "Time L", timeRange, 375.0f, makeAttrs("ms", 0));
+    addFloat("timeR", "Time R", timeRange, 500.0f, makeAttrs("ms", 0));
 
     NormalisableRange<float> rateRange(0.05f, 10.0f, 0.01f);
     rateRange.setSkewForCentre(1.0f);
-    addFloat("modRate", "Mod Rate", rateRange, 0.8f, makeAttrs("Hz", 2));
-    addFloat("modDepth", "Mod Depth", {0.0f, 30.0f, 0.1f}, 4.0f, makeAttrs("ms", 1));
+    addFloat("modRate", "Mod Rate", rateRange, 0.8f, makeAttrs("Hz", 1));
+    addFloat("modDepth", "Mod Depth", {0.0f, 30.0f, 0.1f}, 4.0f, makeAttrs("ms", 0));
 
     NormalisableRange<float> decayRange(0.2f, 10.0f, 0.01f);
     decayRange.setSkewForCentre(2.5f);
-    addFloat("revDecay", "Rev Decay", decayRange, 3.0f, makeAttrs("s", 2));
-    addFloat("revMix", "Rev Mix", {0.0f, 100.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
-    addFloat("revWidth", "Width", {0.0f, 200.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
+    addFloat("revDecay", "Rev Decay", decayRange, 3.0f, makeAttrs("s", 0));
+    addFloat("revMix", "Rev Mix", {0.0f, 100.0f, 0.1f}, 35.0f, makeAttrs("%", 0));
+    addFloat("revWidth", "Width", {0.0f, 200.0f, 0.1f}, 100.0f, makeAttrs("%", 0));
 
-    addFloat("wetGain", "Wet Gain", {-12.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
+    addFloat("wetGain", "Wet Gain", {-12.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 0));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"swellInput", 1}, "Swell on Input", false));
 
