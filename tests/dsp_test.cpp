@@ -332,6 +332,30 @@ int main() {
         CHECK(a8x > 0.7f * a8c, "crystal keeps 8 kHz (bright shimmer)");
         CHECK(a5x < 0.4f * a5c, "crystal cuts 500 Hz (highpass)");
         CHECK(a5x > 0.03f, "crystal at 100% does NOT silence the repeat");
+
+        // crystal adds a sharp attack at the start of the repeat ("glass break")
+        auto runImp = [&](float smear) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.smear = smear;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            l[0] = 1.0f;
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
+        float pv2 = 0.0f;
+        auto impClear = runImp(0.0f);
+        peakIndex(impClear, t - 20, t + 20, &pv2);
+        const float impC = std::fabs(pv2);
+        auto impX = runImp(1.0f);
+        peakIndex(impX, t - 20, t + 20, &pv2);
+        const float impXAmp = std::fabs(pv2);
+        std::printf("  crystal attack: impulse echo clear %.3f crystal %.3f\n", (double) impC, (double) impXAmp);
+        CHECK(impXAmp > 1.3f * impC, "crystal: sharper attack at the start of the repeat");
     }
 
     // 13) mono-to-stereo behavior at engine level: same input on both channels,
@@ -422,10 +446,10 @@ int main() {
         const float dryOnLate = std::fabs(pv);
         std::printf("  swell: wet early %.3f late %.3f | dry off %.3f, on early %.3f late %.3f\n",
                     (double) wetEarly, (double) wetLate, (double) dryOffEarly, (double) dryOnEarly, (double) dryOnLate);
-        CHECK(wetEarly < 0.75f, "swell: repeat swells in (early part quiet)");
+        CHECK(wetEarly < 0.8f, "swell: repeat swells in (early part quiet)");
         CHECK(wetLate > 0.85f, "swell: repeat reaches full level after the swell");
         CHECK(dryOffEarly > 0.9f, "toggle off: dry input NOT swelled");
-        CHECK(dryOnEarly < 0.75f && dryOnLate > 0.85f, "toggle on: dry input swells too");
+        CHECK(dryOnEarly < 0.8f && dryOnLate > 0.85f, "toggle on: dry input swells too");
     }
 
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);

@@ -122,6 +122,7 @@ private:
     // smear state: one-pole lowpass on the delay-line input (per channel)
     float smear = 0.0f;
     float inLpL = 0.0f, inLpR = 0.0f;
+    float inPrevL = 0.0f, inPrevR = 0.0f; // for the crystal "glass break" transient (first difference)
     // swell state: onset detector + time ramp on the line input (per channel)
     float swell = 0.0f;
     float fastEnvL = 0.0f, fastEnvR = 0.0f;
