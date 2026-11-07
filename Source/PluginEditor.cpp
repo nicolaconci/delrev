@@ -31,11 +31,17 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"revMix",     "Mix",        Colour(0xff40e0d0)},
     };
 
-    titleLabel.setText("StereoDelayHall", dontSendNotification);
+    titleLabel.setText("essentia", dontSendNotification);
     titleLabel.setJustificationType(Justification::centred);
     titleLabel.setColour(Label::textColourId, Colours::white);
     titleLabel.setFont(Font(FontOptions(20.0f, Font::bold)));
     addAndMakeVisible(titleLabel);
+
+    taglineLabel.setText("simplicitas est summa subtilitas", dontSendNotification);
+    taglineLabel.setJustificationType(Justification::centred);
+    taglineLabel.setColour(Label::textColourId, Colour(0xff8a8f98));
+    taglineLabel.setFont(Font(FontOptions(11.0f, Font::italic)));
+    addAndMakeVisible(taglineLabel);
 
     // single-knob sections (PRE, MASTER, ATTACK) show only the coloured group
     // title, not an extra label above the knob
@@ -103,7 +109,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     addAndMakeVisible(wetButton);
     wetAttachment = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment>(apvts, "wet100", wetButton);
 
-    setSize(1040, 470);
+    setSize(1040, 492);
 }
 
 StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() {
@@ -130,6 +136,8 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     auto area = getLocalBounds().reduced(8);
     titleLabel.setBounds(area.removeFromTop(26));
     area.removeFromTop(6);
+    taglineLabel.setBounds(area.removeFromBottom(18));
+    area.removeFromBottom(4);
 
     auto cellOf = [](Rectangle<int> groupArea, int index, int count) {
         const int w = (groupArea.getWidth() - 20) / count;

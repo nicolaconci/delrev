@@ -1,4 +1,6 @@
-# StereoDelayHall
+# essentia
+
+*(shown as **essentia** in DAWs; file/target names remain `StereoDelayHall.*`)*
 
 Audio plugin (**VST3 + Audio Unit on macOS**, plus a Standalone app) — a
 **stereo delay** with independent left/right delay times, time modulation,

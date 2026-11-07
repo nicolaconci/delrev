@@ -16,6 +16,7 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
 
     juce::Label titleLabel;
+    juce::Label taglineLabel;
 
     static constexpr int numKnobs = 16;
     juce::Slider sliders[numKnobs];

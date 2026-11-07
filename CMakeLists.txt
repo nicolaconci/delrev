@@ -25,6 +25,7 @@ juce_add_plugin(StereoDelayHall
     PLUGIN_MANUFACTURER_CODE Vibe
     PLUGIN_CODE             Sdh1
     FORMATS                 AU VST3 Standalone
+    PLUGIN_NAME             "essentia"
     PRODUCT_NAME            "StereoDelayHall"
     DESCRIPTION             "Stereo delay with independent L/R times, modulation, and a hall reverb on the repeats"
     VST3_CATEGORIES         "Delay Reverb Stereo"
