@@ -42,6 +42,7 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     modDepth = def.modDepthMs;
     revDecaySec = def.revDecaySec;
     revMix = def.revMix;
+    revWidth = def.revWidth;
     paramsSnapped = false;
     lfoPhase = 0.0f;
 }
@@ -64,6 +65,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.modDepthMs = std::clamp(c.modDepthMs, 0.0f, maxModDepthMs);
     c.revDecaySec = std::clamp(c.revDecaySec, 0.2f, 10.0f);
     c.revMix = std::clamp(c.revMix, 0.0f, 1.0f);
+    c.revWidth = std::clamp(c.revWidth, 0.0f, 2.0f);
     target = c;
     targetPreGain = dbToLinear(c.preGainDb);
     targetMaster = dbToLinear(c.masterDb);
@@ -84,6 +86,7 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         modDepth = c.modDepthMs;
         revDecaySec = c.revDecaySec;
         revMix = c.revMix;
+        revWidth = c.revWidth;
         paramsSnapped = true;
     }
 }
@@ -110,6 +113,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         modRate += (target.modRateHz - modRate) * smoothCoef;
         modDepth += (target.modDepthMs - modDepth) * smoothCoef;
         revMix += (target.revMix - revMix) * smoothCoef;
+        revWidth += (target.revWidth - revWidth) * smoothCoef;
 
         const float inL = left[i] * preGain;
         const float inR = right[i] * preGain;
@@ -219,6 +223,13 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
 
         float rvL = 0.0f, rvR = 0.0f;
         reverb.process(wL, wR, rvL, rvR);
+        {
+            // reverb width in mid/side: 0 = mono tail, 1 = full stereo, 2 = extra wide
+            const float mid = 0.5f * (rvL + rvR);
+            const float side = 0.5f * (rvL - rvR) * revWidth;
+            rvL = mid + side;
+            rvR = mid - side;
+        }
 
         const float wetL = wL + revMix * rvL;
         const float wetR = wR + revMix * rvR;
@@ -259,6 +270,7 @@ void StereoDelayHallEngine::reset() {
     modDepth = target.modDepthMs;
     revDecaySec = target.revDecaySec;
     revMix = target.revMix;
+    revWidth = target.revWidth;
     paramsSnapped = true;
 }
 

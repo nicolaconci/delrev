@@ -23,6 +23,7 @@ struct EngineParams {
     float modDepthMs = 4.0f;  // modulation depth, as delay-time deviation (ms)
     float revDecaySec = 3.0f; // hall reverb decay, RT60-like (s)
     float revMix = 0.35f;     // reverb amount on the repeats only (0..1)
+    float revWidth = 1.0f;    // reverb stereo width: 0 = mono tail, 1 = full, 2 = extra wide
 };
 
 // Stereo delay with independent L/R times, time modulation, feedback, and a
@@ -131,7 +132,7 @@ private:
     float swellTargetL = 1.0f, swellTargetR = 1.0f;
     int onsetTimerL = 1 << 30, onsetTimerR = 1 << 30;
     float timeL = 0.0f, timeR = 0.0f;
-    float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f;
+    float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;
     float smoothCoef = 0.0f;
     bool paramsSnapped = false;
     DelayLine lineL, lineR;

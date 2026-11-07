@@ -497,6 +497,34 @@ int main() {
         }
     }
 
+    // 16) reverb width (mid/side): 0% = mono tail (L==R), 200% = extra wide (L!=R)
+    {
+        auto run = [&](float width) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f;
+            p.revMix = 1.0f; p.revDecaySec = 5.0f; p.revWidth = width;
+            e.setParams(p);
+            std::vector<float> l(30000, 0.0f), r(30000, 0.0f);
+            l[0] = 1.0f; // impulse on L only
+            e.process(l.data(), r.data(), 30000);
+            return std::make_pair(l, r);
+        };
+        const int t = (int) (0.100 * sr);
+        auto mono = run(0.0f);
+        auto wide = run(2.0f);
+        double maxDiffMono = 0.0, maxDiffWide = 0.0;
+        for (int i = t + 100; i < 30000; ++i) {
+            maxDiffMono = std::max(maxDiffMono, (double) std::fabs(mono.first[(size_t) i] - mono.second[(size_t) i]));
+            maxDiffWide = std::max(maxDiffWide, (double) std::fabs(wide.first[(size_t) i] - wide.second[(size_t) i]));
+        }
+        std::printf("  rev width: max|L-R| at 0%% = %.5f, at 200%% = %.5f\n", maxDiffMono, maxDiffWide);
+        CHECK(maxDiffMono < 1e-3, "width 0%: reverb tail is mono (L == R)");
+        CHECK(maxDiffWide > 1e-3, "width 200%: reverb tail is wide (L != R)");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

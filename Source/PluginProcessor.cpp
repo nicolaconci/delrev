@@ -47,6 +47,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     decayRange.setSkewForCentre(2.5f);
     addFloat("revDecay", "Rev Decay", decayRange, 3.0f, makeAttrs("s", 2));
     addFloat("revMix", "Rev Mix", {0.0f, 100.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
+    addFloat("revWidth", "Width", {0.0f, 200.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
 
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"wet100", 1}, "100% Wet", false));
     layout.add(std::make_unique<AudioParameterBool>(ParameterID{"swellInput", 1}, "Swell on Input", false));
@@ -76,6 +77,7 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     modDepthParam = apvts.getRawParameterValue("modDepth");
     revDecayParam = apvts.getRawParameterValue("revDecay");
     revMixParam = apvts.getRawParameterValue("revMix");
+    revWidthParam = apvts.getRawParameterValue("revWidth");
     wet100Param = apvts.getRawParameterValue("wet100");
 }
 
@@ -126,6 +128,7 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.modDepthMs = modDepthParam->load();
     p.revDecaySec = revDecayParam->load();
     p.revMix = revMixParam->load() / 100.0f;
+    p.revWidth = revWidthParam->load() / 100.0f;
     if (wet100Param->load() > 0.5f) {
         p.mixL = 1.0f;
         p.mixR = 1.0f;

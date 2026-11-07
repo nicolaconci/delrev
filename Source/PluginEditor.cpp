@@ -29,6 +29,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"modDepth",   "Depth",      Colour(0xffc77dff)},
         {"revDecay",   "Decay",      Colour(0xff40e0d0)}, // REV
         {"revMix",     "Mix",        Colour(0xff40e0d0)},
+        {"revWidth",   "Width",      Colour(0xff40e0d0)},
     };
 
     titleLabel.setText("essentia", dontSendNotification);
@@ -198,10 +199,10 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         placeKnob(12 + i, cellOf(mod, i, 2));
     row2.removeFromLeft(8);
 
-    auto rev = row2.removeFromLeft(220);
+    auto rev = row2.removeFromLeft(300);
     groupRev.setBounds(rev);
-    for (int i = 0; i < 2; ++i)
-        placeKnob(14 + i, cellOf(rev, i, 2));
+    for (int i = 0; i < 3; ++i)
+        placeKnob(14 + i, cellOf(rev, i, 3));
     row2.removeFromLeft(8);
 
     auto wet = row2;

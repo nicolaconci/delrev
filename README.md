@@ -46,6 +46,7 @@ purple / teal).
 | MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
 | REV     | Decay           | 0.2–10 s          | 3 s     | hall decay, RT60-mapped (log scale)                            |
 | REV     | Mix             | 0–100 %           | 35 %    | reverb amount on the repeats only                              |
+| REV     | Width           | 0–200 %           | 100 %   | reverb tail width (M/S): 0% mono, 100% full stereo, 200% extra wide |
 | WET     | 100% Wet (button) | on/off          | off     | forces Mix L/R to 100% — aux bus/send (wet-only), knobs untouched |
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
