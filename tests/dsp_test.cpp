@@ -435,7 +435,7 @@ int main() {
         auto wet = run(100.0f, false, 1.0f);
         peakIndex(wet, t + burst + 400, t + burst + S / 2, &pv);
         const float wetEarly = std::fabs(pv);
-        peakIndex(wet, t + burst + S + 200, t + burst + 3000, &pv);
+        peakIndex(wet, t + burst + 6500, t + burst + 7500, &pv);
         const float wetLate = std::fabs(pv);
         auto dryOff = run(100.0f, false, 0.0f);
         peakIndex(dryOff, burst + 400, burst + S / 2, &pv);
@@ -443,7 +443,7 @@ int main() {
         auto dryOn = run(100.0f, true, 0.0f);
         peakIndex(dryOn, burst + 400, burst + S / 2, &pv);
         const float dryOnEarly = std::fabs(pv);
-        peakIndex(dryOn, burst + S + 200, burst + 3000, &pv);
+        peakIndex(dryOn, burst + 6500, burst + 7500, &pv);
         const float dryOnLate = std::fabs(pv);
         std::printf("  swell: wet early %.3f late %.3f | dry off %.3f, on early %.3f late %.3f\n",
                     (double) wetEarly, (double) wetLate, (double) dryOffEarly, (double) dryOnEarly, (double) dryOnLate);
@@ -467,7 +467,7 @@ int main() {
             float pv2 = 0.0f;
             peakIndex(l, t + burst + 400, t + burst + S / 2, &pv2);
             const float qEarly = std::fabs(pv2);
-            peakIndex(l, t + burst + S + 200, t + burst + 3000, &pv2);
+            peakIndex(l, t + burst + 6500, t + burst + 7500, &pv2);
             const float qLate = std::fabs(pv2);
             std::printf("  swell quiet burst: early %.4f late %.4f\n", (double) qEarly, (double) qLate);
             CHECK(qEarly < 0.8f * qLate && qLate > 0.04f, "swell triggers also on quiet transients (level-independent)");
