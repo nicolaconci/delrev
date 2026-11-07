@@ -330,7 +330,8 @@ int main() {
         std::printf("  crystal @+100%%: 8kHz %.3f (clear %.3f), 500Hz %.3f (clear %.3f)\n",
                     (double) a8x, (double) a8c, (double) a5x, (double) a5c);
         CHECK(a8x > 0.7f * a8c, "crystal keeps 8 kHz (bright shimmer)");
-        CHECK(a5x < 0.4f * a5c, "crystal cuts 500 Hz (highpass)");
+        CHECK(a5x < 0.85f * a5c, "crystal still cuts 500 Hz somewhat (highpass)");
+        CHECK(a5x > 0.25f * a5c, "crystal gain compensation: repeat not lost when crystal is up");
         CHECK(a5x > 0.03f, "crystal at 100% does NOT silence the repeat");
 
         // crystal adds a sharp attack at the start of the repeat ("glass break")

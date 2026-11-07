@@ -135,7 +135,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         float gL = 1.0f, gR = 1.0f;
         const int S = (int) std::lround(swell * sr * 0.001f);
         if (S > 0) {
-            const int refractory = std::max(S, (int) (0.150f * sr)); // >= 150 ms between onsets
+            const int refractory = std::max(S, (int) (0.200f * sr)); // >= 200 ms between onsets
             auto rampUp = [&](float in, float& fast, float& slow, float& ramp, float& target, int& sinceOnset) {
                 const float a = std::fabs(in);
                 const float relF = 1.0f - std::exp(-1.0f / (0.001f * sr)); // fast env release ~1 ms
@@ -146,7 +146,7 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
                 ++sinceOnset;
                 // marked transient only: fast energy jumps well above slow (3x),
                 // absolute level significant, refractory elapsed, previous swell done
-                if (fast > 4.0f * slow && slow > 0.10f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
+                if (fast > 5.0f * slow && slow > 0.15f && sinceOnset > refractory && ramp >= 1.0f && target > 0.0f) {
                     target = 0.0f;
                     sinceOnset = 0;
                 }
@@ -185,8 +185,12 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             const float a = 1.0f - std::exp(-6.2831853f * fc / sr);
             inLpL += a * (inL - inLpL);
             inLpR += a * (inR - inLpR);
-            wInL = inL - smear * inLpL + smear * 2.0f * (inL - inPrevL);
-            wInR = inR - smear * inLpR + smear * 2.0f * (inR - inPrevR);
+            wInL = inL - smear * inLpL + smear * 1.0f * (inL - inPrevL);
+            wInR = inR - smear * inLpR + smear * 1.0f * (inR - inPrevR);
+            // gain compensation: the highpass removes energy, so raise the wet
+            // level as the crystal amount grows (the repeat must not get lost)
+            wInL *= 1.0f + 2.0f * smear;
+            wInR *= 1.0f + 2.0f * smear;
         }
         inPrevL = inL;
         inPrevR = inR;
