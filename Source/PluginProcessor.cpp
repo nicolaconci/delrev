@@ -13,7 +13,21 @@ using namespace juce;
 static AudioParameterFloatAttributes makeAttrs(const String& label, int decimals) {
     return AudioParameterFloatAttributes()
         .withLabel(label)
-        .withStringFromValueFunction([decimals](float v, int) { return String(v, decimals); })
+        .withStringFromValueFunction([decimals](float v, int) {
+            if (decimals <= 0)
+                return String((int) std::lround(v)); // clean integer, no trailing decimal point
+            return String(v, decimals);
+        })
+        .withValueFromStringFunction([](const String& s) { return s.getFloatValue(); });
+}
+
+// rate label: 1 decimal above 1 Hz, 2 decimals below (so 0.05, 0.06, ... are visible near zero)
+static AudioParameterFloatAttributes makeRateAttrs() {
+    return AudioParameterFloatAttributes()
+        .withLabel("Hz")
+        .withStringFromValueFunction([](float v, int) {
+            return v < 1.0f ? String(v, 2) : String(v, 1);
+        })
         .withValueFromStringFunction([](const String& s) { return s.getFloatValue(); });
 }
 
@@ -70,7 +84,7 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
 
     NormalisableRange<float> rateRange(0.05f, 10.0f, 0.01f);
     rateRange.setSkewForCentre(1.0f);
-    addFloat("modRate", "Mod Rate", rateRange, 0.8f, makeAttrs("Hz", 1));
+    addFloat("modRate", "Mod Rate", rateRange, 0.8f, makeRateAttrs());
     addFloat("modDepth", "Mod Depth", {0.0f, 30.0f, 0.1f}, 4.0f, makeAttrs("ms", 0));
 
     NormalisableRange<float> decayRange(0.2f, 10.0f, 0.01f);
