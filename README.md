@@ -64,6 +64,13 @@ stereo image. The delay line is read with cubic interpolation.
 - **stereo → mono**: mixdown (L+R)/2
 - **mono → mono**
 
+Note: on a mono track, hosts that auto-convert (GarageBand, Pro Tools) get
+mono→stereo automatically; hosts that don't (e.g. LUNA) may instantiate the
+plugin as mono→mono — in that case set the track to stereo in the DAW, or use
+the plugin on a stereo bus. The plugin advertises `{1,1},{1,2},{2,2}` as
+preferred channel configurations and also detects a L-only upmix (right channel
+below 0.1% of left) and duplicates it.
+
 ## Architecture
 
 ```
