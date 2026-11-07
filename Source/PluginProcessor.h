@@ -43,6 +43,8 @@ private:
     std::atomic<float>* masterParam = nullptr;
     std::atomic<float>* mixLParam = nullptr;
     std::atomic<float>* mixRParam = nullptr;
+    std::atomic<float>* toneLParam = nullptr;
+    std::atomic<float>* toneRParam = nullptr;
     std::atomic<float>* feedbackLParam = nullptr;
     std::atomic<float>* feedbackRParam = nullptr;
     std::atomic<float>* attackParam = nullptr;

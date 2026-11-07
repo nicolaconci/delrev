@@ -14,9 +14,11 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
         {"preGain",    "Pre Gain",   Colour(0xffffa500)}, // PRE
         {"timeL",      "Time L",     Colour(0xff4da3ff)}, // LEFT
         {"feedbackL",  "Feedback L", Colour(0xff4da3ff)},
+        {"toneL",      "Tone L",     Colour(0xff4da3ff)},
         {"mixL",       "Mix L",      Colour(0xff4da3ff)},
         {"timeR",      "Time R",     Colour(0xff4dff88)}, // RIGHT
         {"feedbackR",  "Feedback R", Colour(0xff4dff88)},
+        {"toneR",      "Tone R",     Colour(0xff4dff88)},
         {"mixR",       "Mix R",      Colour(0xff4dff88)},
         {"master",     "Master",     Colour(0xffffa500)}, // MASTER
         {"attack",     "Attack",     Colour(0xffaaaaaa)}, // ATTACK
@@ -34,7 +36,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
 
     // single-knob sections (PRE, MASTER, ATTACK) show only the coloured group
     // title, not an extra label above the knob
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 9 && i != 10; };
 
     for (int i = 0; i < numKnobs; ++i) {
         sliders[i].setSliderStyle(Slider::RotaryVerticalDrag);
@@ -91,7 +93,7 @@ StereoDelayHallAudioProcessorEditor::StereoDelayHallAudioProcessorEditor(StereoD
     addAndMakeVisible(wetButton);
     wetAttachment = std::make_unique<AudioProcessorValueTreeState::ButtonAttachment>(apvts, "wet100", wetButton);
 
-    setSize(920, 470);
+    setSize(1040, 470);
 }
 
 StereoDelayHallAudioProcessorEditor::~StereoDelayHallAudioProcessorEditor() = default;
@@ -110,7 +112,7 @@ void StereoDelayHallAudioProcessorEditor::resized() {
         return Rectangle<int>(groupArea.getX() + 4 + index * w, groupArea.getY() + 14,
                               w, groupArea.getHeight() - 18);
     };
-    auto hasInnerLabel = [](int i) { return i != 0 && i != 7 && i != 8; };
+    auto hasInnerLabel = [](int i) { return i != 0 && i != 9 && i != 10; };
     auto placeKnob = [&](int i, Rectangle<int> cell) {
         if (hasInnerLabel(i))
             labels[i].setBounds(cell.removeFromTop(16));
@@ -128,21 +130,21 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     placeKnob(0, singleCell(pre));
     row1.removeFromLeft(8);
 
-    auto left = row1.removeFromLeft(320);
+    auto left = row1.removeFromLeft(400);
     groupLeft.setBounds(left);
-    for (int i = 0; i < 3; ++i)
-        placeKnob(1 + i, cellOf(left, i, 3));
+    for (int i = 0; i < 4; ++i)
+        placeKnob(1 + i, cellOf(left, i, 4));
     row1.removeFromLeft(8);
 
-    auto right = row1.removeFromLeft(320);
+    auto right = row1.removeFromLeft(400);
     groupRight.setBounds(right);
-    for (int i = 0; i < 3; ++i)
-        placeKnob(4 + i, cellOf(right, i, 3));
+    for (int i = 0; i < 4; ++i)
+        placeKnob(5 + i, cellOf(right, i, 4));
     row1.removeFromLeft(8);
 
     auto master = row1;
     groupMaster.setBounds(master);
-    placeKnob(7, singleCell(master));
+    placeKnob(9, singleCell(master));
 
     // Row 2: ATTACK | MOD (Rate, Depth) | REV (Decay, Mix) | WET (100% Wet button)
     auto row2 = area;
@@ -152,19 +154,19 @@ void StereoDelayHallAudioProcessorEditor::resized() {
     groupAttack.setBounds(atk);
     auto atkCell = singleCell(atk);
     attackCurveBox.setBounds(atkCell.removeFromBottom(22));
-    placeKnob(8, atkCell);
+    placeKnob(10, atkCell);
     row2.removeFromLeft(8);
 
     auto mod = row2.removeFromLeft(220);
     groupMod.setBounds(mod);
     for (int i = 0; i < 2; ++i)
-        placeKnob(9 + i, cellOf(mod, i, 2));
+        placeKnob(11 + i, cellOf(mod, i, 2));
     row2.removeFromLeft(8);
 
     auto rev = row2.removeFromLeft(220);
     groupRev.setBounds(rev);
     for (int i = 0; i < 2; ++i)
-        placeKnob(11 + i, cellOf(rev, i, 2));
+        placeKnob(13 + i, cellOf(rev, i, 2));
     row2.removeFromLeft(8);
 
     auto wet = row2;

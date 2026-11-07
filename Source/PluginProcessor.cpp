@@ -25,7 +25,9 @@ AudioProcessorValueTreeState::ParameterLayout StereoDelayHallAudioProcessor::cre
     addFloat("preGain", "Pre Gain", {-24.0f, 24.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
     addFloat("master", "Master", {-48.0f, 12.0f, 0.1f}, 0.0f, makeAttrs("dB", 1));
     addFloat("mixL", "Mix L", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
+    addFloat("toneL", "Tone L", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
     addFloat("mixR", "Mix R", {0.0f, 100.0f, 0.1f}, 30.0f, makeAttrs("%", 1));
+    addFloat("toneR", "Tone R", {0.0f, 100.0f, 0.1f}, 100.0f, makeAttrs("%", 1));
     addFloat("feedbackL", "Feedback L", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("feedbackR", "Feedback R", {0.0f, 95.0f, 0.1f}, 35.0f, makeAttrs("%", 1));
     addFloat("attack", "Attack", {0.0f, 50.0f, 0.1f}, 0.0f, makeAttrs("ms", 1));
@@ -60,7 +62,9 @@ StereoDelayHallAudioProcessor::StereoDelayHallAudioProcessor()
     preGainParam = apvts.getRawParameterValue("preGain");
     masterParam = apvts.getRawParameterValue("master");
     mixLParam = apvts.getRawParameterValue("mixL");
+    toneLParam = apvts.getRawParameterValue("toneL");
     mixRParam = apvts.getRawParameterValue("mixR");
+    toneRParam = apvts.getRawParameterValue("toneR");
     feedbackLParam = apvts.getRawParameterValue("feedbackL");
     feedbackRParam = apvts.getRawParameterValue("feedbackR");
     attackParam = apvts.getRawParameterValue("attack");
@@ -107,7 +111,9 @@ void StereoDelayHallAudioProcessor::processBlock(AudioBuffer<float>& buffer, Mid
     p.preGainDb = preGainParam->load();
     p.masterDb = masterParam->load();
     p.mixL = mixLParam->load() / 100.0f;
+    p.toneL = toneLParam->load() / 100.0f;
     p.mixR = mixRParam->load() / 100.0f;
+    p.toneR = toneRParam->load() / 100.0f;
     p.feedbackL = feedbackLParam->load() / 100.0f;
     p.feedbackR = feedbackRParam->load() / 100.0f;
     p.attackMs = attackParam->load();

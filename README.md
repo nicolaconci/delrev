@@ -30,9 +30,11 @@ purple / teal).
 | PRE     | Pre Gain        | -24..+24 dB       | 0 dB    | input gain, before dry/delay/feedback                          |
 | LEFT    | Time L          | 20–2000 ms        | 375 ms  | left delay time (log scale)                                    |
 | LEFT    | Feedback L      | 0–95 %            | 35 %    | left feedback (recirculating, pre-reverb)                      |
+| LEFT    | Tone L          | 0–100 %           | 100 %   | left wet lowpass: 100% bright (~18 kHz), 0% dark (~300 Hz)     |
 | LEFT    | Mix L           | 0–100 %           | 30 %    | left dry/wet                                                   |
 | RIGHT   | Time R          | 20–2000 ms        | 500 ms  | right delay time (independent)                                 |
 | RIGHT   | Feedback R      | 0–95 %            | 35 %    | right feedback (independent)                                   |
+| RIGHT   | Tone R          | 0–100 %           | 100 %   | right wet lowpass (independent — e.g. one bright, one dark)   |
 | RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
 | MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
 | ATTACK  | Attack          | 0–50 ms           | 0 ms    | fade-in per repeat (amplitude envelope on the wet, not a lowpass) |

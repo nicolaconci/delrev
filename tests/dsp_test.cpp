@@ -367,6 +367,40 @@ int main() {
         CHECK(std::abs(pkR - (int) (0.450 * sr)) <= 3 && pvR > 0.8f, "mono->stereo: right repeat at 450 ms");
     }
 
+    // 14) tone L/R: per-channel lowpass on the wet (bright vs dark delay)
+    {
+        auto run = [&](float freq, float tone) {
+            StereoDelayHallEngine e;
+            e.prepare(sr, 512);
+            EngineParams p;
+            p.mixL = 1.0f; p.mixR = 1.0f; p.feedbackL = 0.0f; p.feedbackR = 0.0f;
+            p.timeLms = 100.0f; p.timeRms = 100.0f; p.modDepthMs = 0.0f; p.revMix = 0.0f;
+            p.toneL = tone; p.toneR = tone;
+            e.setParams(p);
+            std::vector<float> l(20000, 0.0f), r(20000, 0.0f);
+            for (int i = 0; i < 20000; ++i)
+                l[i] = std::sin(2.0 * 3.14159265 * freq * i / sr);
+            e.process(l.data(), r.data(), 20000);
+            return l;
+        };
+        const int t = (int) (0.100 * sr);
+        float pv = 0.0f;
+        auto bright8k = run(8000.0f, 1.0f);
+        peakIndex(bright8k, t + 500, t + 3000, &pv);
+        const float b8 = std::fabs(pv);
+        auto dark8k = run(8000.0f, 0.0f);
+        peakIndex(dark8k, t + 500, t + 3000, &pv);
+        const float d8 = std::fabs(pv);
+        auto dark200 = run(200.0f, 0.0f);
+        peakIndex(dark200, t + 500, t + 3000, &pv);
+        const float dLow = std::fabs(pv);
+        std::printf("  tone: 8kHz bright %.3f dark %.3f; 200Hz dark %.3f\n",
+                    (double) b8, (double) d8, (double) dLow);
+        CHECK(b8 > 0.8f, "tone=100%: 8 kHz echo passes (bright)");
+        CHECK(d8 < 0.15f * b8, "tone=0%: 8 kHz echo heavily attenuated (dark)");
+        CHECK(dLow > 0.7f, "tone=0%: 200 Hz still passes (lowpass, not highpass)");
+    }
+
     std::printf(failures ? "\n%d TEST(S) FAILED\n" : "\nALL TESTS PASSED\n", failures);
     return failures ? 1 : 0;
 }

@@ -10,6 +10,8 @@ struct EngineParams {
     float masterDb = 0.0f;    // output/master volume (dB)
     float mixL = 0.30f;       // 0..1 dry/wet, left channel
     float mixR = 0.30f;       // 0..1 dry/wet, right channel
+    float toneL = 1.0f;       // 0..1 lowpass on the left wet (1 = bright ~18 kHz, 0 = dark ~300 Hz)
+    float toneR = 1.0f;       // 0..1 lowpass on the right wet
     float feedbackL = 0.35f;  // 0..0.95 recirculation gain, left channel
     float feedbackR = 0.35f;  // 0..0.95 recirculation gain, right channel
     float attackMs = 0.0f;    // 0..maxAttackMs: fade-in per repeat (amplitude envelope on the wet signal)
@@ -113,7 +115,9 @@ private:
     EngineParams target {};
     float preGain = 1.0f, master = 1.0f; // smoothed linear gains
     float targetPreGain = 1.0f, targetMaster = 1.0f;
-    float mixL = 0.0f, mixR = 0.0f, feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
+    float mixL = 0.0f, mixR = 0.0f, toneL = 1.0f, toneR = 1.0f;
+    float toneLpL = 0.0f, toneLpR = 0.0f; // tone lowpass state
+    float feedbackL = 0.0f, feedbackR = 0.0f, attack = 0.0f;
     // attack fade-in state: peak envelope + attack ramp on the wet signal (per channel)
     float peakEnvL = 0.0f, peakEnvR = 0.0f;
     float atkEnvL = 0.0f, atkEnvR = 0.0f;

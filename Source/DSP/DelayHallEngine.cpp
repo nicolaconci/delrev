@@ -24,6 +24,9 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     master = targetMaster;
     mixL = def.mixL;
     mixR = def.mixR;
+    toneL = def.toneL;
+    toneR = def.toneR;
+    toneLpL = toneLpR = 0.0f;
     feedbackL = def.feedbackL;
     feedbackR = def.feedbackR;
     attack = def.attackMs;
@@ -45,6 +48,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
     c.masterDb = std::clamp(c.masterDb, -48.0f, 12.0f);
     c.mixL = std::clamp(c.mixL, 0.0f, 1.0f);
     c.mixR = std::clamp(c.mixR, 0.0f, 1.0f);
+    c.toneL = std::clamp(c.toneL, 0.0f, 1.0f);
+    c.toneR = std::clamp(c.toneR, 0.0f, 1.0f);
     c.feedbackL = std::clamp(c.feedbackL, 0.0f, 0.95f);
     c.feedbackR = std::clamp(c.feedbackR, 0.0f, 0.95f);
     c.attackMs = std::clamp(c.attackMs, 0.0f, maxAttackMs);
@@ -63,6 +68,8 @@ void StereoDelayHallEngine::setParams(const EngineParams& p) {
         master = targetMaster;
         mixL = c.mixL;
         mixR = c.mixR;
+        toneL = c.toneL;
+        toneR = c.toneR;
         feedbackL = c.feedbackL;
         feedbackR = c.feedbackR;
         attack = c.attackMs;
@@ -87,6 +94,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
         master += (targetMaster - master) * smoothCoef;
         mixL += (target.mixL - mixL) * smoothCoef;
         mixR += (target.mixR - mixR) * smoothCoef;
+        toneL += (target.toneL - toneL) * smoothCoef;
+        toneR += (target.toneR - toneR) * smoothCoef;
         feedbackL += (target.feedbackL - feedbackL) * smoothCoef;
         feedbackR += (target.feedbackR - feedbackR) * smoothCoef;
         attack += (target.attackMs - attack) * smoothCoef;
@@ -149,6 +158,21 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             wR = dR * gR;
         }
 
+        // tone: per-channel one-pole lowpass on the wet (bright vs dark delay);
+        // at 100% the filter is bypassed (fully transparent)
+        if (toneL < 0.999f) {
+            const float fcL = 300.0f * std::pow(60.0f, toneL); // 300 Hz .. 18 kHz
+            const float aL = 1.0f - std::exp(-6.2831853f * fcL / sr);
+            toneLpL += aL * (wL - toneLpL);
+            wL = toneLpL;
+        }
+        if (toneR < 0.999f) {
+            const float fcR = 300.0f * std::pow(60.0f, toneR);
+            const float aR = 1.0f - std::exp(-6.2831853f * fcR / sr);
+            toneLpR += aR * (wR - toneLpR);
+            wR = toneLpR;
+        }
+
         float rvL = 0.0f, rvR = 0.0f;
         reverb.process(wL, wR, rvL, rvR);
 
@@ -169,6 +193,9 @@ void StereoDelayHallEngine::reset() {
     master = targetMaster;
     mixL = target.mixL;
     mixR = target.mixR;
+    toneL = target.toneL;
+    toneR = target.toneR;
+    toneLpL = toneLpR = 0.0f;
     feedbackL = target.feedbackL;
     feedbackR = target.feedbackR;
     attack = target.attackMs;
