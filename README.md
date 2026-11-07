@@ -1,49 +1,52 @@
 # StereoDelayHall
 
-Audio plugin (VST3 + Audio Unit on macOS): a **stereo delay** with
-independent left/right delay times, **time modulation** (rate + depth),
-**feedback**, **dry/wet mix**, and a **hall reverb** that is fed **only by the
-delay repeats** (never by the dry signal): every repeat gets its own reverb
-tail, with dedicated **decay** and **mix** controls. Works on any source —
-guitar, vocals, synths, full mixes.
+Audio plugin (**VST3 + Audio Unit on macOS**, plus a Standalone app) — a
+**stereo delay** with independent left/right delay times, time modulation,
+per-channel feedback and mix, an attack fade-in per repeat, and a **hall
+reverb fed only by the delay repeats** (never by the dry signal): every repeat
+gets its own reverb tail. Works on any source — guitar, vocals, synths, buses.
+
+## Features
+
+- Independent **Time L / Time R** (20–2000 ms), **Feedback L / R**, **Mix L / R**
+- **Pre Gain** (input) and **Master** (output), in dB
+- **Modulation** (Rate + Depth) on the delay time, anti-phase L/R for width
+- **Attack** fade-in per repeat (amplitude envelope, body preserved),
+  with **Linear / Log / Exp** ramp curve
+- **Hall reverb on the repeats only**, with RT60-mapped **Decay** and **Mix**
+- **100% Wet** toggle — forces Mix L/R to 100% for aux bus/send use
+- Bus layouts: stereo→stereo, **mono→stereo** (mono insert widens to stereo),
+  stereo→mono, mono→mono
+- Full parameter automation + state save/restore (APVTS)
+
+The UI is grouped into colour-coded sections — row 1: `PRE | LEFT | RIGHT |
+MASTER`, row 2: `ATTACK | MOD | REV | WET` (orange / blue / green / grey /
+purple / teal).
 
 ## Parameters
 
-The UI is grouped into colour-coded sections — row 1: `PRE | LEFT | RIGHT |
-MASTER`, row 2: `ATTACK | MOD | REV | WET`.
-
-| Section | Parameter       | Range       | Default | Notes                                                            |
-|---------|-----------------|-------------|---------|------------------------------------------------------------------|
-| PRE     | Pre Gain        | -24..+24 dB | 0 dB    | input gain, before dry/delay/feedback                            |
-| LEFT    | Time L          | 20–2000 ms  | 375 ms  | left delay time (log scale)                                      |
-| LEFT    | Feedback L      | 0–95 %      | 35 %    | left feedback (pre-reverb: tails don't recirculate)              |
-| LEFT    | Mix L           | 0–100 %     | 30 %    | left dry/wet                                                     |
-| RIGHT   | Time R          | 20–2000 ms  | 500 ms  | right delay time (independent)                                   |
-| RIGHT   | Feedback R      | 0–95 %      | 35 %    | right feedback (independent)                                     |
-| RIGHT   | Mix R           | 0–100 %     | 30 %    | right dry/wet (independent)                                      |
-| MASTER  | Master          | -48..+12 dB | 0 dB    | output volume                                                    |
-| ATTACK  | Attack          | 0–50 ms     | 0 ms    | fade-in on the first repeat; it propagates to later repeats through the feedback loop |
-| ATTACK  | Curve (combo)   | Linear / Log / Exp | Linear | shape of the fade-in ramp (Log = fast start, Exp = slow start)    |
-
-The attack fade-in is applied to the signal entering the delay line, so the
-first repeat starts soft over `Attack` ms and the recirculated repeats inherit
-the same fade-in (the loop itself is not re-filtered, so repeats don't decay
-extra). Linear = box moving average, Exp = one-pole lowpass, Log = box + lowpass.
-| MOD     | Rate            | 0.05–10 Hz  | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                            |
-| MOD     | Depth           | 0–30 ms     | 4 ms    | delay-time deviation                                             |
-| REV     | Decay           | 0.2–10 s    | 3 s     | hall decay, RT60-mapped (log scale)                              |
-| REV     | Mix             | 0–100 %     | 35 %    | reverb amount on the repeats                                     |
-| WET     | 100% Wet (button) | on/off    | off     | forces Mix L/R to 100% — for aux bus/send (wet-only), knobs untouched |
-
-Section colours: PRE/MASTER orange, LEFT blue, RIGHT green, ATTACK grey,
-MOD purple, REV teal.
+| Section | Parameter       | Range             | Default | Notes                                                          |
+|---------|-----------------|-------------------|---------|----------------------------------------------------------------|
+| PRE     | Pre Gain        | -24..+24 dB       | 0 dB    | input gain, before dry/delay/feedback                          |
+| LEFT    | Time L          | 20–2000 ms        | 375 ms  | left delay time (log scale)                                    |
+| LEFT    | Feedback L      | 0–95 %            | 35 %    | left feedback (recirculating, pre-reverb)                      |
+| LEFT    | Mix L           | 0–100 %           | 30 %    | left dry/wet                                                   |
+| RIGHT   | Time R          | 20–2000 ms        | 500 ms  | right delay time (independent)                                 |
+| RIGHT   | Feedback R      | 0–95 %            | 35 %    | right feedback (independent)                                   |
+| RIGHT   | Mix R           | 0–100 %           | 30 %    | right dry/wet (independent)                                    |
+| MASTER  | Master          | -48..+12 dB       | 0 dB    | output volume                                                  |
+| ATTACK  | Attack          | 0–50 ms           | 0 ms    | fade-in per repeat (amplitude envelope on the wet, not a lowpass) |
+| ATTACK  | Curve (combo)   | Linear / Log / Exp | Linear | ramp shape: Log = fast start, Exp = slow start                  |
+| MOD     | Rate            | 0.05–10 Hz        | 0.8 Hz  | LFO speed (log scale), anti-phase L/R                          |
+| MOD     | Depth           | 0–30 ms           | 4 ms    | delay-time deviation                                           |
+| REV     | Decay           | 0.2–10 s          | 3 s     | hall decay, RT60-mapped (log scale)                            |
+| REV     | Mix             | 0–100 %           | 35 %    | reverb amount on the repeats only                              |
+| WET     | 100% Wet (button) | on/off          | off     | forces Mix L/R to 100% — aux bus/send (wet-only), knobs untouched |
 
 The two channels' LFOs are in anti-phase (half-period offset) for a wider
 stereo image. The delay line is read with cubic interpolation.
 
 ## Bus layouts
-
-The plugin works on stereo tracks and on mono tracks in insert:
 
 - **stereo → stereo** (normal case)
 - **mono → stereo**: on a mono-track insert the same input feeds both delay
@@ -54,72 +57,95 @@ The plugin works on stereo tracks and on mono tracks in insert:
 ## Architecture
 
 ```
-Source/DSP/DelayHallEngine.{h,cpp}   DSP core in plain C++, no JUCE dependency
-Source/PluginProcessor.{h,cpp}       AudioProcessor + parameters (APVTS) + state
-Source/PluginEditor.{h,cpp}          GUI: 8 rotary knobs
-tests/dsp_test.cpp                   DSP unit tests, runnable anywhere
-CMakeLists.txt                       CMake project (JUCE via FetchContent)
+CMakeLists.txt                     CMake project; JUCE 8.0.4 fetched via FetchContent
+setup.sh                           one-command build + sign + install (macOS)
+Source/DSP/DelayHallEngine.{h,cpp} DSP core in plain C++ (no JUCE dependency, unit-testable)
+Source/PluginProcessor.{h,cpp}     AudioProcessor, 14 parameters (APVTS), bus layouts, state
+Source/PluginEditor.{h,cpp}        GUI: sectioned, colour-coded knobs + combo + toggle
+tests/dsp_test.cpp                 30 DSP unit tests, runnable without JUCE
 ```
 
 Signal flow (per sample, per channel):
 
 ```
-input ─► [pre gain] ──┬───────────────────────► dry ─┐
-                      │                              ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
-                      └─► [delay line + feedbackL/R] ─► d ─► [attack fade-in] ─► w
-                                       │                 ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
-                                       │                 ├─► outR = ((1-mixR)*dryR + mixR*wetR) * master
-                                       │                 │   wet = w + revMix * hall(w)
-                                       └─► hall reverb (repeats only)
+input ─► [pre gain] ─┬────────────────► dry ─┐
+                     │                       ├─► outL = ((1-mixL)*dryL + mixL*wetL) * master
+                     └─► [delay line + feedbackL/R] ─► d ─► [attack envelope] ─► w
+                                     │                ├─► outR = ((1-mixR)*dryR + mixR*wetR) * master
+                                     │                │   wet = w + revMix * hall(w)
+                                     └─► hall reverb (repeats only)
 ```
+
+## Dependencies
+
+- **macOS** with **Xcode** (incl. Command Line Tools: `xcode-select --install`)
+- **CMake ≥ 3.22** (`brew install cmake`)
+- **JUCE 8.0.4**, fetched automatically by CMake (`FetchContent`, tag pinned in
+  `CMakeLists.txt`; override with `-DJUCE_GIT_TAG=...`). Requires network on
+  first configure.
+- C++17 compiler (clang from Xcode)
+- JUCE is **dual-licensed AGPLv3 / commercial** — see License below
 
 ## Quick setup on macOS (one command)
 
 ```sh
+git clone https://github.com/nicolaconci/delrev.git   # or: gh repo clone nicolaconci/delrev
+cd delrev
 ./setup.sh
 ```
 
-Run from the repository root: it configures CMake, builds VST3 + AU +
-Standalone, runs the DSP unit tests, signs the bundles (ad-hoc) and installs
-them into `~/Library/Audio/Plug-Ins/`, **overwriting any previous install**.
-Then restart your DAW (or run `killall -9 AudioComponentRegistrar`).
+`setup.sh` (run from the repo root) checks prerequisites, configures CMake,
+builds VST3 + AU + Standalone, runs the DSP unit tests, signs the bundles
+(ad-hoc `codesign`) and installs them into `~/Library/Audio/Plug-Ins/`,
+**overwriting any previous install**. Then restart the DAW (or
+`killall -9 AudioComponentRegistrar`).
 
-## Manual build on Mac (produces VST3 + AU + Standalone)
-
-Prerequisites: **Xcode** (with Command Line Tools) and **CMake** (`brew install cmake`).
+## Manual build (produces VST3 + AU + Standalone)
 
 ```sh
-cd StereoDelayHall   # or the root of this repository
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
+# build a single format:
+#   cmake --build build --config Release --target StereoDelayHall_VST3
+#   cmake --build build --config Release --target StereoDelayHall_AU
+#   cmake --build build --config Release --target StereoDelayHall_Standalone
+# universal binary (arm64 + x86_64):
+#   cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
 ```
 
-Artifacts land in `build/StereoDelayHall_artefacts/Release/`, one subfolder per format:
+Artifacts land in `build/StereoDelayHall_artefacts/Release/`, one subfolder per
+format: `VST3/StereoDelayHall.vst3`, `AU/StereoDelayHall.component`,
+`Standalone/StereoDelayHall.app`.
 
-- `VST3/StereoDelayHall.vst3` → copy to `~/Library/Audio/Plug-Ins/VST3/`
-- `AU/StereoDelayHall.component` → copy to `~/Library/Audio/Plug-Ins/Components/`
-- `Standalone/StereoDelayHall.app` → standalone app to try it immediately (no DAW needed)
+## Install
 
-To use a different JUCE version: `cmake -B build -DJUCE_GIT_TAG=8.0.4`
-(the tag `8.0.4` is pinned in `CMakeLists.txt`).
+```sh
+cd build/StereoDelayHall_artefacts/Release
+codesign --force --deep --sign - VST3/StereoDelayHall.vst3
+codesign --force --deep --sign - AU/StereoDelayHall.component
+mkdir -p ~/Library/Audio/Plug-Ins/VST3 ~/Library/Audio/Plug-Ins/Components
+cp -R VST3/StereoDelayHall.vst3 ~/Library/Audio/Plug-Ins/VST3/
+cp -R AU/StereoDelayHall.component ~/Library/Audio/Plug-Ins/Components/
+```
 
-Distributing an AU/VST3 on macOS requires signing and notarization
-(see JUCE's AU packaging docs); for local personal use it is not needed.
+Restart the DAW and rescan. (Most DAWs also load the bundles unsigned; ad-hoc
+signing avoids Gatekeeper issues. Distributing an AU/VST3 requires signing +
+notarization — not needed for local use.)
 
-## Running the DSP tests (no JUCE required, any platform)
+## Running the DSP tests (no JUCE needed, any platform)
 
 ```sh
 g++ -std=c++17 -O2 -I Source tests/dsp_test.cpp Source/DSP/DelayHallEngine.cpp -o dsp_test
 ./dsp_test
+# or via CMake:
+cmake --build build --target dsp_test && ./build/dsp_test
 ```
 
-or via CMake: `cmake --build build --target dsp_test && ./build/dsp_test`
-
-The tests verify: exact dry passthrough at mix=0 (the reverb never receives the
-dry signal), independent L/R repeat positions, repeat amplitudes with
-feedback, reverb tail present only after the repeats, repeat shift under
-modulation, no L/R crossfeed, stability at extreme settings (no NaN),
-operation at 48 kHz.
+30 checks covering: exact dry passthrough at mix=0 (reverb never receives dry),
+independent L/R repeat positions and amplitudes, reverb tail only after the
+repeats, modulation shift, no L/R crossfeed, pre-gain/master scaling,
+attack fade-in ramp and curves, mono→stereo widening, stability at extreme
+settings (no NaN), 48 kHz operation.
 
 ## License
 
