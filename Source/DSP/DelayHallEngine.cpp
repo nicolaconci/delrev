@@ -22,7 +22,6 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     const int pLineMax = (int) std::ceil(maxTimeMs * 4.0f * 0.001 * sr) + 64; // ratio up to 4:1
     chL.prepare(sr, pLineMax);
     chR.prepare(sr, pLineMax);
-    capTimerL = capTimerR = 1 << 30;
     pitchRev.prepare(sr);
     pOffL = pOffR = std::clamp(375.0f * (float) sr * 0.001f * 2.0f, 4.0f, (float) (pLineMax - 4)); // default time x default ratio
     inLpL = inLpR = 0.0f;
@@ -69,7 +68,6 @@ void StereoDelayHallEngine::prepare(double sr, int /*maxBlockSize*/) {
     gritInL = gritOutL = gritInR = gritOutR = 0.0f;
     chL.clear();
     chR.clear();
-    capTimerL = capTimerR = 1 << 30;
     pOffL = std::clamp(target.timeLms * (float) sampleRate * 0.001f * snapRatio(target.ratioL), 4.0f, (float) (chL.line.buf.size() - 4));
     pOffR = std::clamp(target.timeRms * (float) sampleRate * 0.001f * snapRatio(target.ratioR), 4.0f, (float) (chR.line.buf.size() - 4));
     paramsSnapped = false;
@@ -287,15 +285,8 @@ void StereoDelayHallEngine::process(float* left, float* right, int numSamples) {
             const bool onsetR = fastEnvR > 2.5f * refEnvR && fastEnvR > 0.005f;
             if (onsetL || fastEnvL > 0.01f) gateL += (1.0f - gateL) * atkL; else gateL *= (1.0f - relG);
             if (onsetR || fastEnvR > 0.01f) gateR += (1.0f - gateR) * atkR; else gateR *= (1.0f - relG);
-            const int refr = (int) (0.150f * sr); // 150 ms capture refractory
-            ++capTimerL;
-            ++capTimerR;
             chL.push(wInL * gL);
             chR.push(wInR * gR);
-            if (onsetL && capTimerL > refr) { chL.capture(true, readRateL); capTimerL = 0; }
-            else if (++chL.refresh >= chL.capLen) { chL.capture(false, readRateL); chL.refresh = 0; } // keep sustained notes alive
-            if (onsetR && capTimerR > refr) { chR.capture(true, readRateR); capTimerR = 0; }
-            else if (++chR.refresh >= chR.capLen) { chR.capture(false, readRateR); chR.refresh = 0; }
         }
         // pitch-line delay offsets are smoothed: changing Time or Ratio glides instead of jumping
         const float maxPOff = (float) (chL.line.buf.size() - 4);
@@ -429,7 +420,6 @@ void StereoDelayHallEngine::reset() {
     gritInL = gritOutL = gritInR = gritOutR = 0.0f;
     chL.clear();
     chR.clear();
-    capTimerL = capTimerR = 1 << 30;
     pOffL = std::clamp(target.timeLms * (float) sampleRate * 0.001f * snapRatio(target.ratioL), 4.0f, (float) (chL.line.buf.size() - 4));
     pOffR = std::clamp(target.timeRms * (float) sampleRate * 0.001f * snapRatio(target.ratioR), 4.0f, (float) (chR.line.buf.size() - 4));
     paramsSnapped = true;

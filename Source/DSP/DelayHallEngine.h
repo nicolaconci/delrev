@@ -62,96 +62,104 @@ private:
         inline float readCubic(float offset) const;
     };
 
-    // extra pitch line: at each transient the recent input (ring buffer) is frozen into a
-    // capture buffer and held (looped). The loop PERIOD is fixed at capLen (200 ms) regardless
-    // of pitch: at higher pitch a longer slice of input is captured and read faster, so the
-    // output loop still lasts 200 ms while sounding transposed (read rate 2^(st/12)).
-    // The loop read pointer is crossfaded over to the transient on capture (no jump, no click).
-    // The held snippet is echoed through a delay line at ratio x main time.
-    struct CaptureHold {
-        DelayLine line;            // echo line at ratio x main time
-        std::vector<float> ring;   // ring buffer, last ringLen input samples (history)
-        std::vector<float> cap[2]; // frozen captures, double-buffered for crossfaded swaps
-        int ringPos = 0;
-        int ringLen = 0;           // ring size = 2 x capLen (max read rate 2 at +12 st)
-        int capLen = 0;            // base hold window = 200 ms (fixed loop period)
-        float capLoopLen = 0.0f;   // active capture length in samples (capLen x readRate)
-        int capCur = 0;
-        int refresh = 0;           // periodic re-capture counter (keeps sustained notes alive)
-        float window = 0.0f;       // crossfade window (loop wrap AND capture swap)
-        float rp = 0.0f;           // main loop read position
-        float rpX = 0.0f;          // crossfade target read position
-        float blend = 1.0f;        // 1 = no crossfade in progress
+    // Granular overlap-add pitch shifter.
+    // Replaces the old CaptureHold loop: instead of freezing a fixed 200 ms snapshot
+    // and looping it, overlapping Hanning-windowed grains are launched at regular
+    // intervals and each grain reads from the input ring at readRate = 2^(st/12).
+    // With 50% overlap, Hanning windows satisfy the COLA condition (sum = 1.0 at every
+    // sample), so the output is artifact-free: no periodic flutter, no loop-wrap clicks.
+    // The gate in process() still controls onset shaping; capture() is gone.
+    // External interface (line, push, play) is identical to CaptureHold.
+    struct GranularPitchLine {
+        static constexpr int MAX_GRAINS = 4; // 2 always active at 50% overlap, 2 spare
+
+        DelayLine line; // echo delay line at ratio x main time (unchanged)
+
+        // ring buffer: circular history of recent input samples (2 s is plenty)
+        std::vector<float> ring;
+        int ringLen  = 0;
+        int writePos = 0; // next-write index; sample written N steps ago is at (writePos-N)
+
+        // per-grain state
+        struct Grain {
+            float absReadF = 0.f; // fractional absolute ring index to read from next
+            int   envIdx   = 0;   // samples played so far in this grain
+            int   len      = 0;   // grain length in samples
+            bool  active   = false;
+        };
+        Grain grains[MAX_GRAINS];
+
+        int   grainLen      = 0;   // length of one grain (100 ms)
+        int   grainInterval = 1;   // output samples between grain launches (grainLen/2 = 50%)
+        float nextGrainIn   = 1.f; // countdown to next launch
+
         void prepare(double sr, int lineMaxSamples) {
             line.resize(lineMaxSamples);
-            capLen = (int) std::ceil(0.200 * sr);  // 200 ms fixed hold/loop period
-            ringLen = 2 * capLen;                  // room for readRate up to 2 (+12 st)
+            ringLen  = (int) std::ceil(2.0 * sr); // 2 s ring; more than enough
             ring.assign((size_t) ringLen, 0.0f);
-            cap[0].assign((size_t) ringLen, 0.0f);
-            cap[1].assign((size_t) ringLen, 0.0f);
-            capLoopLen = (float) capLen;
-            window = std::min(capLen * 0.5f, 0.100f * (float) sr); // 100 ms crossfades (max = half the 200 ms loop; very smooth)
-            ringPos = 0;
-            capCur = 0;
-            refresh = 0;
-            rp = 0.0f;
-            rpX = 0.0f;
-            blend = 1.0f;
+            writePos    = 0;
+            nextGrainIn = 1.f;
+            for (auto& g : grains) g = {};
+            grainLen      = (int) std::ceil(0.100 * sr); // 100 ms grains
+            grainInterval = grainLen / 2;                 // 50 % overlap
         }
         void clear() {
             line.clear();
             std::fill(ring.begin(), ring.end(), 0.0f);
-            std::fill(cap[0].begin(), cap[0].end(), 0.0f);
-            std::fill(cap[1].begin(), cap[1].end(), 0.0f);
-            ringPos = 0;
-            capCur = 0;
-            refresh = 0;
-            capLoopLen = (float) capLen;
-            rp = 0.0f;
-            rpX = 0.0f;
-            blend = 1.0f;
+            writePos    = 0;
+            nextGrainIn = 1.f;
+            for (auto& g : grains) g = {};
         }
         inline void push(float x) {
-            ring[(size_t) ringPos] = x;
-            ringPos = (ringPos + 1) % ringLen;
+            ring[(size_t) writePos] = x;
+            writePos = (writePos + 1) % ringLen;
         }
-        // freeze the last capLen*readRate samples into the other buffer; the loop period in the
-        // OUTPUT stays capLen (fixed 200 ms). atTransient also restarts the read at the attack.
-        inline void capture(bool atTransient, float readRate) {
-            capLoopLen = std::max((float) capLen * 0.5f, (float) capLen * readRate);
-            const int n = (int) std::lround(capLoopLen);
-            const int nxt = 1 - capCur;
-            for (int i = 0; i < n; ++i)
-                cap[(size_t) nxt][(size_t) i] = ring[(size_t) ((ringPos - n + i + 2 * ringLen) % ringLen)];
-            rpX = atTransient ? (float) (n - 1) : rp;
-            blend = 0.0f;
-        }
-        inline float readAt(const std::vector<float>& buf, float pos) const {
-            const int n = (int) std::lround(capLoopLen);
-            double p = std::fmod((double) pos, (double) n);
-            if (p < 0.0) p += (double) n;
-            const int i0 = (int) p;
-            const float f = (float) (p - (double) i0);
-            const int i1 = (i0 + 1) % n;
-            return buf[(size_t) i0] * (1.0f - f) + buf[(size_t) i1] * f;
-        }
-        inline float loopRead(const std::vector<float>& buf, float& pos, float rate) {
-            pos += rate;
-            if (pos >= capLoopLen) pos -= capLoopLen;
-            const float d = capLoopLen - pos;
-            float w = d / window;
-            if (w > 1.0f) w = 1.0f;
-            return w * readAt(buf, pos) + (1.0f - w) * readAt(buf, pos - capLoopLen);
-        }
-        inline float play(float readRate) { // transpose + hold; capture swap is crossfaded
-            const float a = loopRead(cap[(size_t) capCur], rp, readRate);
-            if (blend < 1.0f) {
-                const float b = loopRead(cap[(size_t) (1 - capCur)], rpX, readRate);
-                blend += 1.0f / window;
-                if (blend >= 1.0f) { capCur = 1 - capCur; rp = rpX; return b; }
-                return a * (1.0f - blend) + b * blend;
+        // Returns pitch-shifted output sample; readRate = 2^(semitones/12).
+        // No capture() call needed: the granular engine reads from the live ring.
+        inline float play(float readRate) {
+            // Launch a new grain when the timer fires
+            if (--nextGrainIn <= 0.f) {
+                nextGrainIn += (float) grainInterval;
+                launchGrain(readRate);
             }
-            return a;
+            // Sum active grains (Hanning-windowed, linear-interpolated ring read)
+            float out = 0.f;
+            for (auto& g : grains) {
+                if (!g.active) continue;
+                // Hanning window (COLA at 50% overlap: sum of two overlapping windows = 1)
+                const float ph = (float) g.envIdx / (float) (g.len - 1);
+                const float w  = 0.5f - 0.5f * std::cos(6.2831853f * ph);
+                // Linear interpolation into ring
+                const int   ri0 = ((int) g.absReadF % ringLen + ringLen) % ringLen;
+                const int   ri1 = (ri0 + 1) % ringLen;
+                const float fr  = g.absReadF - std::floor(g.absReadF);
+                out += w * (ring[(size_t) ri0] * (1.0f - fr) + ring[(size_t) ri1] * fr);
+                g.absReadF += readRate;
+                if (++g.envIdx >= g.len) g.active = false;
+            }
+            return out; // no extra scaling: Hanning COLA at 50% sums to 1
+        }
+    private:
+        void launchGrain(float readRate) {
+            // Find a free grain slot, or steal the most-advanced one
+            int slot = 0;
+            bool found = false;
+            for (int i = 0; i < MAX_GRAINS; ++i) {
+                if (!grains[i].active) { slot = i; found = true; break; }
+            }
+            if (!found) {
+                for (int i = 1; i < MAX_GRAINS; ++i)
+                    if (grains[i].envIdx > grains[slot].envIdx) slot = i;
+            }
+            Grain& g  = grains[slot];
+            g.len     = grainLen;
+            g.envIdx  = 0;
+            g.active  = true;
+            // Start reading from (grainLen * readRate) samples ago so that over grainLen
+            // output samples the grain reads exactly grainLen * readRate input samples
+            // (ending near the current write position → minimum latency at unity pitch)
+            const float startAgo = (float) grainLen * readRate;
+            g.absReadF = (float) writePos - startAgo;
         }
     };
 
@@ -237,8 +245,7 @@ private:
     float grit = 0.0f, modVol = 1.0f, pitchL = 0.0f, pitchR = 0.0f, ratioL = 2.0f, ratioR = 2.0f, pitchMixL = 0.5f, pitchMixR = 0.5f;
     float gateL = 0.0f, gateR = 0.0f; // pitch-line gate: opens at the transient, held while playing
     float gritInL = 0.0f, gritOutL = 0.0f, gritInR = 0.0f, gritOutR = 0.0f; // slow RMS follower: constant-volume grit
-    CaptureHold chL, chR;
-    int capTimerL = 1 << 30, capTimerR = 1 << 30; // capture refractory timers
+    GranularPitchLine chL, chR;
     float pOffL = 0.0f, pOffR = 0.0f; // smoothed pitch-line delay offsets (no time jumps)
     float timeL = 0.0f, timeR = 0.0f;
     float modRate = 0.0f, modDepth = 0.0f, revDecaySec = 0.0f, revMix = 0.0f, revWidth = 1.0f;
